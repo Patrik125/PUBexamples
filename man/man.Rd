@@ -1,5 +1,5 @@
 \name{tema}
 \alias{tema}
 
-\title{}
+\title{titulok}
 

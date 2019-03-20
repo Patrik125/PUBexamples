@@ -1,0 +1,17 @@
+PUBexamples-package     Examples for the PUB summer school in Vienna,
+                        6-10 July 2015
+data4chapter10          Dataset associated with the tutorial of Chapter
+                        10: Prediction of runoff hydrographs in
+                        ungauged basins
+data4chapter5and6       Dataset associated with the tutorial of Chapter
+                        5 and 6: Prediction of annual and seasonal
+                        runoff in ungauged basins
+data4chapter7           Italian dataset for the tutorial associated to
+                        Chapter 7: Prediction of flow duration curves
+                        in ungauged basins
+data4chapter8           Austrian dataset for the tutorial associated to
+                        Chapter 8: Prediction of low flows in ungauged
+                        basins
+level2assessBoxPlots    Quantiles for level 2 assessment box-plots
+plotPUBfiguresLevel2    Plot the Level 2 assessment figures in the PUB
+                        book

@@ -1,0 +1,23 @@
+Package: PUBexamples
+Type: Package
+Title: Examples for the PUB summer school in Vienna, 6-10 July 2015
+Version: 0.0-5
+Date: 2015-07-02
+Authors@R: c(person("Alberto", "Viglione", role=c("aut", "cre"), email="viglione@hydro.tuwien.ac.at"),
+             person("Juraj", "Parajka", role=c("aut"), email="parajka@hydro.tuwien.ac.at"),
+             person("Attilio", "Castellarin", role=c("aut"), email="attilio.castellarin@unibo.it"),
+             person("Gregor", "Laaha", role=c("aut"), email="gregor.laaha@boku.ac.at"),
+             person("Jose Luis", "Salinas", role=c("aut"), email="salinas@hydro.tuwien.ac.at"))
+Depends: R (>= 3.0.0), stats
+Suggests: rworldmap, Hmisc, robustbase, rtop, TUWmodel, zoo, sp
+Description: This package is devoted to runoff prediction in ungauged basins (PUB), i.e., predicting water runoff at locations where no runoff data are available. 
+             This lack of data presents considerable challenges to catchment managers who require information on water flows for decision making. 
+             This package, based on the recently published book, "Runoff Prediction in Ungauged Basins: Synthesis across Processes, Places and Scales", provides hydrologists with examples of methods to address this critical challenge. 
+             The collection of examples bring together individual location-based studies and illustrate how a comparative approach can be applied to learn from the differences and similarities between catchments around the world along gradients of climate and landscape features.
+License: GPL (>= 2)
+Author: Alberto Viglione [aut, cre], Juraj Parajka [aut]
+Maintainer: Alberto Viglione <viglione@hydro.tuwien.ac.at>
+LazyData: TRUE
+NeedsCompilation: no
+Packaged: 2015-07-05 15:42:09 UTC; alviglio
+Built: R 3.2.0; ; 2015-07-05 15:46:15 UTC; unix

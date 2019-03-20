@@ -1,0 +1,1088 @@
+\documentclass[a4paper, 10pt]{article}
+\usepackage{graphics}                 % Packages to allow inclusion of graphics
+\usepackage[utf8]{inputenc}   % To allow umlaut
+\usepackage[pdftex]{graphicx}
+\usepackage{fancyhdr}
+\usepackage[figuresright]{rotating}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\usepackage{doi}
+\usepackage{natbib}
+%\usepackage{/usr/local/lib/R/share/texmf/tex/latex/Sweave}   % old pc
+\usepackage{/usr/share/R/share/texmf/tex/latex/Sweave}  % new pc
+
+\usepackage{colortbl}      
+\newcommand{\comm}[1]{\textcolor{red}{#1}}    
+\newcommand{\readerhelp}[1]{\noindent\colorbox{yellow}{\textcolor{cyan}{(#1)}}}
+
+%\usepackage{unicode-math}  % for bold greek letters
+
+
+
+% Margini
+\setlength{\textwidth} {180mm}
+\setlength{\textheight}{255mm}      %Altezza testo 227 mm
+%\setlength{\topmargin} {0.1mm}
+
+\setlength{\evensidemargin}{-10mm} %Margini per l'opzione twoside
+\setlength{\oddsidemargin} {-10mm}
+\setlength{\topmargin}{-20mm}
+
+
+%\VignetteIndexEntry{Chapter 07: Prediction of flow duration curves in ungauged basins - an Italian example}
+
+% Header
+\pagestyle{fancy}
+
+% For figure numbering
+\numberwithin{figure}{section}
+
+\setkeys{Gin}{width=0.49\textwidth}
+
+\SweaveOpts{keep.source=TRUE, include=TRUE, width=5, height=3.3, echo=TRUE, results=verbatim}
+
+
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{.5\baselineskip}
+
+% units of measurements
+\newcommand{\udm}[1]{\ensuremath{{\rm #1}}}
+
+
+% colori delle scritte
+\definecolor{darkred}{rgb}{0.545,0,0} 
+\definecolor{midnightblue}{rgb}{0.098,0.098,0.439}
+\DefineVerbatimEnvironment{Sinput}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{midnightblue}}}
+\DefineVerbatimEnvironment{Soutput}{Verbatim}{xleftmargin=2em, fontsize=\tiny, formatcom={\color{darkred}}}
+\DefineVerbatimEnvironment{Scode}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{blue}}}
+\fvset{listparameters={\setlength{\topsep}{0pt}}}
+\renewenvironment{Schunk}{\vspace{\topsep}}{\vspace{\topsep}}
+
+
+
+
+
+
+
+
+
+\title{Chapter 7: Prediction of flow duration curves in ungauged basins - an Italian example}
+\author{Attilio Castellarin}
+\date{}
+
+
+
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+This Tutorial has been developed by \href{http://www.researchgate.net/profile/Attilio_Castellarin}{Attilio Castellarin} to illustrate the construction and regional prediction of Flow Duration Curves \citep[FDC, see e.g.,][]{VogelFennessey1994JWRPMa, VogelFennessey1995JAWRAb}.
+A detailed literature review is available in \citet{Castellarinetal2013PUBbookCh7}.
+
+
+
+
+
+
+<<echo=FALSE>>=
+options(width=180)
+options(prompt=" ", continue=" ")
+@
+
+
+First of all load the library:
+<<>>=
+library(PUBexamples)
+@
+%   B <- read.table("Code_Descriptors.txt") # Catchment descriptors
+%   Descriptors <- data.frame(Code=B[,1], 
+%                             Stream=c("Burano","Candigliano","Candigliano","Metauro","Metauro","Bosso","Biscuvio","Sentino"),
+%                             Gauge=c("Foci","Acqualagna","Piobbico","B. di Bellaguardia","Calmazzo","Cagli","Piobbico","S. Vittore"),
+%                             MAT=B[,2], MAP=B[,3], A=B[,4]
+%   ); Descriptors
+%   dailyQ <- read.csv(file="Daily_Q_database.csv", row.names=NULL)
+%   save(list=c("dailyQ", "Descriptors"), file="data4chapter7.rda")
+%   Descriptors <- read.csv("Descriptors.csv")
+%    names(Descriptors)[5:8] <- c("Elev","MAT","MAP","PET")
+%   save(list=c("dailyQ", "Descriptors"), file="data4chapter7.rda")
+
+Then the data:
+<<>>=
+data(data4chapter7)
+
+Descriptors
+
+dailyQ[1:10, 1:20]
+@
+
+
+Budyko:
+<<>>=
+# mean annual runoff
+MAR <- sapply(split(dailyQ[,-c(1,2)], dailyQ$Code), FUN=function(x){mean(as.matrix(x))}) # m3/s
+MAR <- 365.25*24*3.6*MAR[-9]/Descriptors$Area
+
+PETovP <- Descriptors$PET/Descriptors$MAP
+ETovP <- (Descriptors$MAP - MAR)/Descriptors$MAP
+@
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_0_1.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+colori <- rev(rainbow(10, start=0, end=.65, alpha=1))
+plot(PETovP, ETovP, xlim=c(0,3), ylim=c(0,1), pch=21,
+     bg=colori[round(10*PETovP)],
+     cex=log10(Descriptors$Area)) 
+ segments(x0=c(0,1), y0=c(0,1), x1=c(1,4), y1=c(1,1), lty=2)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh7_0_1}
+\end{center}
+
+
+
+
+
+
+
+\section{Empirical Flow-Duration Curves}   \label{s:point1}
+
+Using the available daily streamflow data, construct and represent on a semi-logarithmic plot the following empirical curves:
+\begin{itemize}
+\item[a)] Period-of-Record Flow-Duration Curve (POR-FDC)
+\item[b)] Annual FDC for a typical hydrologic year (median AFDC's)
+\item[c)] Percentile AFDC's associated with a non-exceedance probability of 0.1 e 0.9 (one-in-ten-years dry and humid hydrological years, respectively)
+\end{itemize}
+
+
+The following code extracts data and produce plots on:
+\begin{itemize}
+\item Empirical Period-of-Record Flow-Duration Curve;
+\item Empirical Median Annual Flow Duration Curve;
+\item Percentile Annual Flow Duration Curve;
+\end{itemize}
+for the Target Site.
+
+<<>>=
+N <- 365
+Target.Code <- 1701 # Target Site
+@
+
+The database contains complete series of daily streamflows (no missing values) in which data for Feb. 29th on leap years have been dropped (365 values per year):
+<<>>=
+dailyQ[1:10, 1:20]
+@
+
+<<>>=
+M <- dailyQ[which(dailyQ[,1] == Target.Code),]  # Select the Target site data from the database
+Anni <- unique(M[,2]) # Identify years (in Italian "Anni") with data
+Nanni <- length(Anni) # no. of years
+QMG <- matrix(as.matrix(M[,3:367]), Nanni, N) # Initialize matrix for storing Annual-FDC
+# (Construction of empirical AFDC's)
+# Reorganize obs. values ordering them in descending order
+QMG <- -t(apply(-QMG, 1, sort)) # Sort each row in descending order
+@
+
+Compute percentiles AFDC's:
+<<>>=
+pvalues <- c(0.1,0.5,0.9); Np <- length(pvalues)
+QPRC <- matrix(0, Np, N) # Initialization
+# Computation
+for (iD in 1:N) QPRC[,iD] <- as.vector(quantile(QMG[,iD], pvalues)) #Computation
+@
+
+Duration for AFDCs:
+<<>>=
+D_AFDC <- 1:N/(N + 1)
+@
+
+Reorganize obs values into a single vector (Construction of empirical Period of Record POR-FDC):
+<<>>=
+FDC_obs <- -sort(-c(QMG)) # Period-of-Record Flow Duration Curve
+@
+
+Duration for POR-FDCs:
+<<>>=
+N_POR <- length(FDC_obs)             # record length for POR_FDC
+D_FDC <- 1:N_POR/(N_POR + 1)
+@
+
+
+
+Plot the results:
+<<>>=
+yy <- c(min(FDC_obs), max(FDC_obs)) # Axes limits
+yt <- c(0.01,0.1,1,10,100,1000)  # Tick marks
+@
+
+Figure.1: Empirical POR-FDC's:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_1_1.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(D_FDC, FDC_obs, type="l", lty="dotted", col="black", lwd=3,
+     log="y", yaxt="n", ylim=yy,
+     main="Empirical Period-of-Record Flow-Duration Curves", cex.main=1, font.main=1,
+     xlab="Duration", ylab=expression(paste("Discharge (",m^3,"/s)")))
+ axis(2, at=yt)
+ grid(nx=NA, ny=NULL, col="lightgray", lty="dotted",
+      lwd=par("lwd"), equilogs=TRUE)
+legend("topright", inset=.05, legend="POR-FDC", lty="dotted", lwd=3, col="black", bty="n")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.5\textwidth]{FigCh7_1_1}
+\end{center}
+
+
+Figure.2: Empirical Median Annual FDC's:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_1_2.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+# In the background: empirical AFDC's (gray)
+plot(D_AFDC, QMG[1,], type="l", lty=1, col=rgb(.3,.3,.3),
+     log="y", yaxt="n", ylim=yy,
+     main="Empirical Annual Flow-Duration Curves", cex.main=1, font.main=1,
+     xlab="Duration", ylab=expression(paste("Discharge (",m^3,"/s)")))
+for (ire in 2:Nanni) lines(D_AFDC, QMG[ire,], lty=1, col=rgb(.3,.3,.3))
+lines(D_AFDC, QPRC[2,], lty=1, col="black", lwd=3) 
+ axis(2, at=yt)
+ grid(nx=NA, ny=NULL, col="lightgray", lty="dotted",
+      lwd=par("lwd"), equilogs=TRUE)
+legend("topright", inset=.05, legend=c("Empirical AFDC","Median AFDC"),
+       bty="n", lwd=c(.75,3), col=c(rgb(.3,.3,.3), "black"))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.5\textwidth]{FigCh7_1_2}
+\end{center}
+
+
+Figure.3: Empirical Percentile Annual FDC's:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_1_3.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+# In the background: empirical AFDC's (gray)
+plot(D_AFDC, QMG[1,], type="l", lty=1, col=rgb(.3,.3,.3),
+     log="y", yaxt="n", ylim=yy,
+     main="Empirical Annual Flow-Duration Curves", cex.main=1, font.main=1,
+     xlab="Duration", ylab=expression(paste("Discharge (",m^3,"/s)")))
+for (ire in 2:Nanni) lines(D_AFDC, QMG[ire,], lty=1, col=rgb(.3,.3,.3))
+lines(D_AFDC, QPRC[1,], lty=1, col="red", lwd=3)
+lines(D_AFDC, QPRC[3,], lty=1, col="blue", lwd=3)
+ axis(2, at=yt)
+ grid(nx=NA, ny=NULL, col="lightgray", lty="dotted",
+      lwd=par("lwd"), equilogs=TRUE)
+legend("topright", inset=.05, legend=c("Empirical AFDC","Percentile AFDC (dry year)","Percentile AFDC (wet year)"),
+       bty="n", lwd=c(.75,3), col=c(rgb(.3,.3,.3), "red", "blue"))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.5\textwidth]{FigCh7_1_3}
+\end{center}
+
+
+Figure.4: Comparison:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_1_4.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(D_FDC, FDC_obs, type="l", lty="dotted", col="black", lwd=3,
+     log="y", yaxt="n", ylim=yy,
+     main="Comparison between empirical period-of-Record Flow-Duration Curves", cex.main=.8, font.main=1,
+     xlab="Duration", ylab=expression(paste("Discharge (",m^3,"/s)")))
+lines(D_AFDC, QPRC[2,], lty=1, col="black", lwd=3) 
+lines(D_AFDC, QPRC[1,], lty=1, col="red", lwd=3) 
+lines(D_AFDC, QPRC[3,], lty=1, col="blue", lwd=3) 
+ axis(2, at=yt)
+ grid(nx=NA, ny=NULL, col="lightgray", lty="dotted",
+      lwd=par("lwd"), equilogs=TRUE)
+legend("topright", inset=.05,
+       legend=c("POR-FDC","Median AFDC","Percentile AFDC (dry year)","Percentile AFDC (wet year)"),
+       lty=c("dotted","solid","solid","solid"), lwd=c(3,3,3,3), col=c("black","black","red","blue"), bty="n")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.5\textwidth]{FigCh7_1_4}
+\end{center}
+
+
+
+
+% -------------------------------------------------------------------------- %
+
+\section{Regional model of Median AFDC}   \label{s:point2}
+
+Considering the study region illustrated above, identify a regional model for predicting Median AFDC's in ungauged sites. 
+To develop the model (1) adopt the graphical regional procedure and (2) assume that the {\em target site is ungauged} (i.e., discard all hydrometric information for this site).
+
+The regional model to be developed consists of two components:
+\begin{itemize}
+\item[i)] dimensionless Median AFDC, which reports the ratio between daily streamflows and long-term mean annual flow as a function of duration and is {\em valid for the Target Site (Region of Influence)};
+\item[ii)] a multiregression model that enables one to predict the long-term annual mean $\mu$ in ungauged sites as a function of relevant physiographic and climatic catchment descriptors, of the form:
+$$\hat{\mu} = A_0 \omega_1^{A_1} \omega_2^{A_2} \dots \omega_n^{A_n} \cdot \varepsilon$$
+where $\omega_i$, with $i=1,2,\dots n$, are the explanatory variables (i.e., catchment descriptors) of the model and $\varepsilon$ is the error term.
+\end{itemize}
+
+The adjusted Nash-Sutcliffe Efficiency measure, $NSE_{adj}$, may be used to guide the selection of the most suitable multiregression model:
+$$NSE_{adj} = 1 - \left(\frac{N - 1}{N - (p + 1)}\right)\left(1 - NSE\right)$$
+where
+$$NSE = 1 - \frac{\sum_i (x_i - \hat{x}_i)^2}{\sum_i (x_i - \bar{x})^2}$$
+and $x_i$ are the empirical values, $\hat{x}_i$ are the estimated values, $\bar{x}$ is the empirical mean value, $N$ is the number of catchments and $p$ is the number of explanatory variables.
+ 
+
+
+\subsection{Dimensionless Median AFDC}
+
+The following code extracts data and computes the regional dimensionless Flow-Duration curve starting from regional data.
+
+<<>>=
+Target.Code
+@
+
+Initialize a Variable to store all AFDC50:
+<<>>=
+Code <- c(801,901,902,1002,1004,1701,2101,2201)
+AFDC50 <- matrix(0, length(Code), 365); rownames(AFDC50) <- Code
+RegAFDC50 <- matrix(0, length(Code), 365); rownames(RegAFDC50) <- Code
+@
+Initialize the variable Mean Annual Flow (MAF):
+<<>>=
+MAF <- rep(0, length(Code)); names(MAF) <- Code
+@
+
+Calculate AFDC50 and MAF for all sites:
+<<>>=
+for (istaz in 1:length(Code)) #Loop on sites
+{
+  #Select the Target Site data from the database
+  M <- dailyQ[which(dailyQ[,1] == Code[istaz]),]
+  # Identifies the years ("Anni" in Italian) with data
+  Anni <- unique(M[,2])
+  Nanni <- length(Anni) #no. of years
+
+  QMG <- matrix(as.matrix(M[,3:367]), Nanni, N) # Initialize matrix for storing Annual-FDC
+  # Reorganize obs values ordering in decsending order
+  # (Construction of empirical AFDC's)
+  QMG <- -t(apply(-QMG, 1, sort)) # Sort each row in descending order
+
+  # Store in memory AFDC50
+  for (iD in 1:N) AFDC50[istaz, iD] <- as.vector(quantile(QMG[,iD], 0.5))
+  # Store in memory MAF
+  MAF[istaz] <- mean(QMG) #Average value of all observed flows
+} #End Loop on sites
+@
+
+Dimensionless mean AFDC's:
+<<>>=
+for (istaz in 1:length(Code)) RegAFDC50[istaz,] <- AFDC50[istaz,]/MAF[istaz]
+@
+
+Target site dimensionless AFDC:
+<<>>=
+Target.RegAFDC50 <- RegAFDC50[which(Code == Target.Code),]
+@
+
+Regional sample without Target site:
+<<>>=
+RegAFDC50 <- RegAFDC50[-which(Code == Target.Code),]
+@
+
+
+ROI approach:
+Load catchment descriptors:
+<<>>=
+Descriptors
+Attributes <- Descriptors[,c("Code","Area","MAT","MAP")]
+@
+
+Compute ROI distances with the Target Site:
+<<>>=
+for (icol in 2:4) Attributes[,icol] <- Attributes[,icol]/sd(Attributes[,icol])
+@
+Standardize by standard deviation:
+<<>>=
+Target.Attributes <- Attributes[which(Attributes$Code == Target.Code),]
+Distance <- sqrt((Target.Attributes$MAT - Attributes$MAT)^2 +
+                 (Target.Attributes$MAP - Attributes$MAP)^2 +
+                 (Target.Attributes$Area - Attributes$Area)^2)
+@
+
+Drop site Target.Code and compute weights (weighted inverse distance):
+<<>>=
+exponent <- 3
+Weights <- 1/Distance[-which(Code == Target.Code)]^exponent/sum(1/Distance[-which(Code == Target.Code)]^exponent)
+@
+
+Regional dimensionless AFDC50 (discarding site Target.Code):
+<<>>=
+Regional_Curve <- rep(0, N) # Initialize variable
+for (iD in 1:N) Regional_Curve[iD] <- sum(RegAFDC50[,iD]*Weights)
+@
+
+
+
+
+Figure - Regional dimensionless AFDC's:
+<<>>=
+yy <- c(min(c(Target.RegAFDC50, RegAFDC50)),
+        max(c(Target.RegAFDC50, RegAFDC50))) # Axes limits
+yt <- c(0.01,0.1,1,10,100,1000) # Tick marks
+@
+Duration for AFDCs:
+<<>>=
+D_AFDC <- 1:N/(N + 1)
+@
+
+Sites' curves:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_2_1.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(D_AFDC, RegAFDC50[1,], type="l", lty=1, lwd=.75, col=rgb(.6,.6,.6),
+     log="y", yaxt="n", ylim=yy,
+     main="Dimensionless AFDC", cex.main=1, font.main=1, 
+     xlab="Duration", ylab="Dimensionless discharge")
+for (isite in 2:(length(RegAFDC50[,1]) - 1)) {
+ lines(D_AFDC, RegAFDC50[isite,], lty=1, lwd=.75, col=rgb(.6,.6,.6))
+}
+# Regional curve
+lines(D_AFDC, Regional_Curve, lty=1, lwd=3, col=rgb(1,0,0))
+lines(D_AFDC, Target.RegAFDC50, lty="dotted", lwd=3, col="black")
+ axis(2,at=yt)
+ grid(nx=NA, ny=NULL, col="lightgray", lty="dotted",
+      lwd=par("lwd"), equilogs=TRUE)
+legend("topright", inset=.05, legend=c("Target Site (Empirical)","Regional curve (Prediction)","Empirical curves"),
+       lwd=c(3,3,.75), col=c("black","red",rgb(.6,.6,.6)), lty=c("dotted","solid","solid"), bty="n")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.5\textwidth]{FigCh7_2_1}
+\end{center}
+
+To save data for later utilizations:
+<<eval=FALSE>>=
+# Median AFDC for the site of interest
+dummy <- as.vector(AFDC50[which(Code == Target.Code),])
+write(dummy, file="Target_AFDC50.txt", ncolumns=1)
+@
+<<eval=FALSE>>=
+# Mean Annual flow values
+dummy <- matrix(c(Code, MAF), length(Code), 2)
+write(t(dummy), 'Code_MAF.txt', ncolumns=2)
+@
+<<eval=FALSE>>=
+# Regional Curve
+write(Regional_Curve, "Regional_Curve.txt")
+@
+
+
+
+% -------------------------------------------------------------------------- %
+
+\subsection{Regional multiregression model}
+
+<<>>=
+Target.Code
+@
+
+<<>>=
+A <- as.data.frame(matrix(c(Code, MAF), length(Code), 2))  # Mean Annual flow values
+ colnames(A) <- c("Cod","MAF")   # Columns names
+B <- Attributes # Catchment descriptors
+ colnames(B) <- c("Cod","A","MAT","MAP") # Columns names
+dimB <- dim(B) # Dimensions of B
+@
+
+Log-transformation of the data (dependent variable):
+<<>>=
+y <- log(A[,2])
+y <- y[which(A$Cod != Target.Code)] # Discard Target Site
+@
+Log-trasformation of the data (explanatory variable):
+<<>>=
+x <- log(B[2:dimB[2]])
+x <- x[which(B$Cod != Target.Code),] # Discard Target Site
+@
+
+
+\textbf{Stepwise Regression Analysis}
+
+EXAMPLE: Model Area (first step):
+<<>>=
+M1.Area <- lm(y ~ x$A)
+summary(M1.Area)
+@
+Checking the structure of the list:
+<<>>=
+str(M1.Area)
+M1.Area[[1]][1]
+M1.Area$coefficients[1]
+summary(M1.Area)[[1]]
+@
+
+
+EXAMPLE: Model MAP (second step):
+<<>>=
+M1.MAP <- lm(y ~ x$MAP)
+summary(M1.MAP)
+@
+
+
+EXAMPLE: Model MAT (third step):
+<<>>=
+M1.MAT <- lm(y ~ x$MAT)
+summary(M1.MAT)
+@
+
+
+\textbf{Area in the model with one explanatory variable}
+
+EXAMPLE: Model with Area and MAP (fourth step):
+<<>>=
+M2.A.MAP <- lm(y ~ x$A + x$MAP)
+summary(M2.A.MAP)
+@
+
+
+EXAMPLE: Model with Area and MAT (fifth step):
+<<>>=
+M2.A.MAT <- lm(y ~ x$A + x$MAT)
+summary(M2.A.MAT)
+@
+
+STOP - Area is the only descriptor worth including! 
+
+
+\textbf{Regional Model performance}
+
+Empirical values
+<<>>=
+EmpMuQ <- A[,2]
+EmpMuQ <- EmpMuQ[which(A$Cod != Target.Code)] # Discard Target site
+@
+
+Regional estimates
+<<>>=
+RegMuQ <- exp(M1.Area$coefficients[1] + M1.Area$coefficients[2]*x$A)
+@
+
+Adjusted NSE index
+<<>>=
+NSE <- 1 - sum((EmpMuQ - RegMuQ)^2)/sum((EmpMuQ - mean(EmpMuQ))^2)
+N <- length(x$A); p <- (length(M1.Area$coefficients) - 1)
+NSEadj <- 1 - (N-1)/(N - (p + 1))*(1 - NSE)
+print("NSE and Adjusted NSE:")
+print(c(NSE, NSEadj))
+@
+
+Figure - Scatter-plot:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_3_1.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(EmpMuQ, RegMuQ, type="p", pch=1, lwd=2,
+     log="xy",
+     xlim=c(1.5, max(A[,2])),
+     ylim=c(1.5, max(A[,2])),
+     main="Regional model for MAF - Scatterplot", cex.main=1, font.main=1,
+     xlab=expression(paste("MAF - Empirical Values (",m^3,"/s)")),
+     ylab=expression(paste("MAF - Regional estimates (",m^3,"/s)")))
+#Perfect fit
+abline(a=0, b=1)
+# Plot in RED regional estimate for Target site
+# Log-transformed catchment descriptor (Area in this case):
+Target.RegMuQ <- exp(M1.Area$coefficients[1] +
+                     M1.Area$coefficients[2]*log(B$A[which(B$Cod == Target.Code)]))
+# Plot cross-validated estimate
+points(A[which(A[,1] == Target.Code),2], Target.RegMuQ, col="red", pch=19, cex=2)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.5\textwidth]{FigCh7_3_1}
+\end{center}
+
+
+Save data for later utilizations:
+<<eval=FALSE>>=
+write(Target.RegMuQ, "Target_RegMuQ.txt")
+@
+
+
+% -------------------------------------------------------------------------- %
+
+\section{Reliability of the regional model}
+
+Graphically compare the empirical Median AFDC (Section \ref{s:point1} of the tutorial) with its regional prediction (Section \ref{s:point2} of the tutorial) for the Target Site.
+
+
+Graphical comparison of empirical and regional median AFDC:
+<<>>=
+RegMuQ <- Target.RegMuQ                                     # Regional estimate of MAF for the site of interest
+RegAFDC <- Regional_Curve                                   # Regional dimensionless median AFDC
+EmpAFDC <- as.vector(AFDC50[which(Code == Target.Code),])   # Empirical median AFDC for the site of interest
+@
+
+Duration:
+<<>>=
+N <- 365
+D_AFDC <- 1:N/(N + 1)
+@
+
+
+Figure.1 - Comparison of Median AFDC's:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_4_1.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+# Plot empirical AFDC
+plot(D_AFDC, EmpAFDC, type="l", lty=1, col="black", lwd=2.75,
+     log="y", yaxt="n",
+     main="Reliability of the regional model",
+     sub="Median AFDC",
+     xlab="Duration", ylab=expression(paste("Discharge (",m^3,"/s)")))
+
+axis(2, at=c(0.01,0.1,1,10,100,1000))
+# Plot regional prediction
+lines(D_AFDC, RegAFDC*RegMuQ, lty=1, col="red", lwd=2.75)
+ grid(nx=NA, ny=NULL, col="lightgray", lty="dotted",
+      lwd=par("lwd"), equilogs=TRUE)
+legend("topright", inset=.05, legend=c("Empirical","Predicted"),
+       bty="n", lwd=c(2.75,2.75), col=c("black","red"))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.5\textwidth]{FigCh7_4_1}
+\end{center}
+
+
+Figure.2 - Residuals:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_4_2.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+# Plot empirical Difference (Emp - Reg)
+plot(D_AFDC, EmpAFDC - RegAFDC*RegMuQ,
+     type="l", lty=1, col="black", lwd=2.75,
+     main="Reliability of the regional model",
+     sub="Median AFDC",
+     xlab="Duration", ylab=expression(paste("Discharge (",m^3,"/s)")))
+
+legend("topright", inset=.05, legend="Diff. between Empirical and Regional",
+       bty="n", lwd=2.75, col="black")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.5\textwidth]{FigCh7_4_2}
+\end{center}
+
+
+
+% -------------------------------------------------------------------------- %
+
+\section{Jackknife cross-validation}
+
+Try different target sites / flow-duration curves.
+
+The observed median flow duration curves are:
+<<>>=
+AFDC50[,1:10]
+summary(t(AFDC50))
+@
+and, normalised with the mean:
+<<>>=
+MAF
+normAFDC50 <- AFDC50/matrix(MAF, nrow=dim(AFDC50)[1], ncol=dim(AFDC50)[2])
+normAFDC50[,1:10]
+summary(t(normAFDC50))
+@
+
+
+Redo the above procedure in a loop to estimate the regional ones in cross-validation:
+<<>>=
+predMAFcv <- rep(NA, length(MAF))
+ names(predMAFcv) <- names(MAF)
+predAFDC50cv <- matrix(NA, nrow=dim(AFDC50)[1], ncol=dim(AFDC50)[2])
+ rownames(predAFDC50cv) <- rownames(AFDC50)
+prednormAFDC50cv <- predAFDC50cv
+for (i in 1:length(Descriptors$Code)) {
+ Target.Code <- Descriptors$Code[i]  # Target Site
+ # Dimensionless mean AFDC's
+ Code <- Descriptors$Code
+ RegAFDC50 <- matrix(0, length(Code), 365); rownames(RegAFDC50) <- Code
+ for (istaz in 1:length(Code)) RegAFDC50[istaz,] <- AFDC50[istaz,]/MAF[istaz]
+ # Target site dimensionless AFDC
+ Target.RegAFDC50 <- RegAFDC50[which(Code == Target.Code),]
+ # Regional sample without Target site
+ RegAFDC50 <- RegAFDC50[-which(Code == Target.Code),]
+ # Compute ROI distances with the Target Site
+ Target.Attributes <- Attributes[which(Attributes$Code == Target.Code),]
+ Distance <- sqrt((Target.Attributes$MAT - Attributes$MAT)^2 +
+                  (Target.Attributes$MAP - Attributes$MAP)^2 +
+                  (Target.Attributes$A - Attributes$A)^2)
+ # Drop site Target.Code and compute weights (weighted inverse distance):
+ # (exponent=3)
+ Weights <- 1/Distance[-which(Code == Target.Code)]^exponent/sum(1/Distance[-which(Code == Target.Code)]^exponent)
+ # Regional dimensionless AFDC50 (discarding site Target.Code):
+ Regional_Curve <- rep(0, 365) # Initialize variable
+ for (iD in 1:365) Regional_Curve[iD] <- sum(RegAFDC50[,iD]*Weights)
+ prednormAFDC50cv[i,] <- Regional_Curve
+ # Regional multiregression model for the mean
+ y <- log(A[,2])
+ y <- y[which(A$Cod != Target.Code)] # Discard Target Site
+ x <- log(B[2:dimB[2]])
+ x <- x[which(B$Cod != Target.Code),] # Discard Target Site
+ M1.Area <- lm(y ~ x$A)  # as before I use Area only
+ # Regional Models
+ RegMuQ <- exp(M1.Area$coefficients[1] +
+               M1.Area$coefficients[2]*log(B$A[which(B$Cod == Target.Code)]))
+ predMAFcv[i] <- RegMuQ
+ predAFDC50cv[i,] <- RegMuQ*Regional_Curve 
+}
+@
+
+<<>>=
+predAFDC50cv[,1:10]
+summary(t(predAFDC50cv))
+@
+<<>>=
+predMAFcv
+prednormAFDC50cv[,1:10]
+summary(t(prednormAFDC50cv))
+@
+
+
+
+Figure.1 - Comparison of Median AFDC's:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_5_1.pdf", height=5, width=10.4, pointsize=10)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:8, nrow=2, byrow=TRUE))
+for (i in 1:length(Descriptors$Code)) {
+ # Plot empirical AFDC
+ plot(D_AFDC, AFDC50[i,], type="l", lty=1, col="black", lwd=2.75,
+      log="y", yaxt="n",
+      main=paste(Descriptors$Code[i], ": ", Descriptors$Stream[i], " at ", Descriptors$Gauge[i], sep=""),
+      sub="Median AFDC",
+      xlab="Duration", ylab=expression(paste("Discharge (",m^3,"/s)")))
+
+ axis(2, at=c(0.01,0.1,1,10,100,1000))
+ # Plot regional prediction
+ lines(D_AFDC, predAFDC50cv[i,], lty=1, col="red", lwd=2.75)
+  grid(nx=NA, ny=NULL, col="lightgray", lty="dotted",
+       lwd=par("lwd"), equilogs=TRUE)
+}
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh7_5_1}
+\end{center}
+
+
+Figure.2 - Comparison of Dimensionless Median AFDC's:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_5_2.pdf", height=5, width=10.4, pointsize=10)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:8, nrow=2, byrow=TRUE))
+for (i in 1:length(Descriptors$Code)) {
+ # Plot empirical AFDC
+ plot(D_AFDC, normAFDC50[i,], type="l", lty=1, col="black", lwd=2.75,
+      log="y", yaxt="n",
+      main=paste(Descriptors$Code[i], ": ", Descriptors$Stream[i], " at ", Descriptors$Gauge[i], sep=""),
+      sub="Median AFDC",
+      xlab="Duration", ylab=paste("Dimensionless discharge"))
+
+ axis(2, at=c(0.01,0.1,1,10,100,1000))
+ # Plot regional prediction
+ lines(D_AFDC, prednormAFDC50cv[i,], lty=1, col="red", lwd=2.75)
+  grid(nx=NA, ny=NULL, col="lightgray", lty="dotted",
+       lwd=par("lwd"), equilogs=TRUE)
+}
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh7_5_2}
+\end{center}
+
+
+
+% -------------------------------------------------------------------------- %
+
+\section{Compare to the PUB book assessment}
+
+In the Level 2 Assessment of the PUB book \citep{Bloeschletal2013PUBbook} the performance assessment in Chapter 7 was based on the slope of the middle part of the FDC defined as the difference between the 30\% and 70\% normalised runoff quantiles divided by 40. 
+This slope quantifies the relative change of runoff for 1\% difference in exceedance probability.
+
+Let's calculate the normalised error and the absolute normalised error in the estimation of the slope of the middle part of the FDC for the catchments considered in this exercise and compare it with Figures 7.22 and 7.23 in the PUB book.
+<<>>=
+obsq30q70 <- apply(normAFDC50, 1, quantile, prob=c(.7, .3))
+ obsq30q70
+predq30q70cv <- apply(prednormAFDC50cv, 1, quantile, prob=c(.7, .3))
+ predq30q70cv
+@
+<<>>=
+obsslFDC <- (obsq30q70[1,] - obsq30q70[2,])/40
+predslFDCcv <- (predq30q70cv[1,] - predq30q70cv[2,])/40
+@
+<<>>=
+NE <- (predslFDCcv - obsslFDC)/obsslFDC
+ANE <- abs(NE)
+tabella <- data.frame(Descriptors[,c("Code", "Area", "Elev", "MAT")], Aridity=PETovP, NE=round(NE, 3), ANE=round(ANE, 3))
+ tabella
+@
+
+<<>>=
+Aridity_class <- cut(tabella$Aridity, breaks=c(-Inf,0.4,0.6,0.8,1,2,Inf))
+MAT_class <- cut(tabella$MAT,  breaks=c(-Inf,3,6,8,10,12,Inf))
+Elev_class <- cut(tabella$Elev, breaks=c(0,300,600,900,1200,1500,Inf))
+Area_class <- cut(tabella$Area, breaks=c(0,50,100,500,1000,5000,Inf))
+@
+
+Notice that the method used here to calculate the normalised FDC is an index method.
+
+<<>>=
+add_points <- function(performance="ANE", variable="Area", classes, table) {
+ # to add points in a nice way
+ for (j in 1:length(levels(classes))) {
+  dummy <- table[as.numeric(classes) == j,]
+  perf <- dummy[, performance]
+  stratif <- dummy[, variable]
+  if (length(stratif) > 0) {
+   if (length(stratif) == 1) {
+    points(j, perf, pch=21, 
+           bg=colori[round(10*dummy$Aridity)],
+           cex=log10(dummy$Area))
+   } else {
+      points(j + 0.1*(stratif - mean(stratif))/sd(stratif),
+             perf, pch=21,
+             bg=colori[round(10*dummy$Aridity)],
+             cex=log10(dummy$Area))
+   }
+  }
+ }
+}
+@
+
+Fig 7.22 at page 159 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_6_1.pdf", height=2.8, width=10.4, pointsize=10)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:4, nrow=1, byrow=TRUE))
+plotPUBfiguresLevel2(chapter=7, method="Index", performance="ANE", 
+                     characteristic="Aridity", ylim=c(0.5,0),
+                     main="Index")
+ add_points(performance="ANE", variable="Aridity", classes=Aridity_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=7, method="Index", performance="ANE", 
+                     characteristic="MAT", ylim=c(0.5,0))
+ add_points(performance="ANE", variable="MAT", classes=MAT_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=7, method="Index", performance="ANE", 
+                     characteristic="Elevation", ylim=c(0.5,0))
+ add_points(performance="ANE", variable="Elev", classes=Elev_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=7, method="Index", performance="ANE", 
+                     characteristic="Area", ylim=c(0.5,0))
+ add_points(performance="ANE", variable="Area", classes=Area_class, table=tabella)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh7_6_1}
+\end{center}
+
+
+Fig 7.23 at page 160 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_6_2.pdf", height=2.8, width=10.4, pointsize=10)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:4, nrow=1, byrow=TRUE))
+plotPUBfiguresLevel2(chapter=7, method="Index", performance="NE",  
+                     characteristic="Aridity", ylim=c(-0.5,0.5),
+                     main="Index"); abline(h=0, lty=3)
+ add_points(performance="NE", variable="Aridity", classes=Aridity_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=7, method="Index", performance="NE",   
+                     characteristic="MAT", ylim=c(-0.5,0.5)); abline(h=0, lty=3)
+ add_points(performance="NE", variable="MAT", classes=MAT_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=7, method="Index", performance="NE",   
+                     characteristic="Elevation", ylim=c(-0.5,0.5)); abline(h=0, lty=3)
+ add_points(performance="NE", variable="Elev", classes=Elev_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=7, method="Index", performance="NE",   
+                     characteristic="Area", ylim=c(-0.5,0.5)); abline(h=0, lty=3)
+ add_points(performance="NE", variable="Area", classes=Area_class, table=tabella)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh7_6_2}
+\end{center}
+
+
+\vspace{.7cm}
+
+In this exercise we also have estimated the mean annual discharge through regression.
+How does it compare with the PUB book?
+<<>>=
+NE <- (predMAFcv - MAF)/MAF
+ANE <- abs(NE)
+
+names(tabella)[6:7] <- c("NEslope","ANEslope")
+tabella <- data.frame(tabella, NE=round(NE, 3), ANE=round(ANE, 3))
+ tabella
+@
+
+Fig 5.27 at page 98 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_6_3.pdf", height=2.8, width=10.4, pointsize=10)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:4, nrow=1, byrow=TRUE))
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="ANE",
+                     characteristic="Aridity", ylim=c(3,0),
+                     main="Regional_regr")
+ add_points(performance="ANE", variable="Aridity", classes=Aridity_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="ANE",
+                     characteristic="MAT", ylim=c(3,0))
+ add_points(performance="ANE", variable="MAT", classes=MAT_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="ANE",
+                     characteristic="Area", ylim=c(3,0))
+ add_points(performance="ANE", variable="Area", classes=Area_class, table=tabella)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh7_6_3}
+\end{center}
+
+
+Fig 5.28 at page 99 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh7_6_4.pdf", height=2.8, width=10.4, pointsize=10)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:4, nrow=1, byrow=TRUE))
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="NE",
+                     characteristic="Aridity", ylim=c(-2,2),
+                     main="Regional_regr"); abline(h=0, lty=3)
+ add_points(performance="NE", variable="Aridity", classes=Aridity_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="NE",
+                     characteristic="MAT", ylim=c(-2,2)); abline(h=0, lty=3)
+ add_points(performance="NE", variable="MAT", classes=MAT_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="NE",
+                     characteristic="Area", ylim=c(-2,2)); abline(h=0, lty=3)
+ add_points(performance="NE", variable="Area", classes=Area_class, table=tabella)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh7_6_4}
+\end{center}
+
+
+
+\begin{thebibliography}{}
+
+\bibitem[Blöschl et al., 2013]{Bloeschletal2013PUBbook}
+Blöschl, G., Sivapalan, M., Wagener, T., Viglione, A. and Savenije, H. (2013)
+\newblock {\em Runoff Prediction in Ungauged Basins: Synthesis Across Processes, Places and Scales}, University Press, Cambridge, 484 pages, ISBN:9781107028180. 
+
+\bibitem[Castellarin et al., 2013]{Castellarinetal2013PUBbookCh7}
+Castellarin, A., Botter, G., Hughes, D.A., Liu, S., Ouarda, T.B.M.J., Parajka, J., Post, D.A., Sivapalan, M., Spence, C., Viglione, A. and Vogel, R.M. (2013).
+\newblock Prediction of flow duration curves in ungauged basins.
+\newblock In {\em Runoff Prediction in Ungauged Basins: Synthesis Across Processes, Places and Scales}, University Press, Cambridge, 135-162, ISBN:9781107028180.
+
+\bibitem[Vogel and Fennessey, 1994]{VogelFennessey1994JWRPMa}
+Vogel, R.M. and Fennessey, N.M. (1994).
+\newblock Flow-duration Curves. I: New Interpretation and Confidence Intervals.
+\newblock {\em Journal of Water Resources Planning and Management-ASCE}, \textbf{120}(4):485--504, \doi{10.1061/(ASCE)0733-9496(1994)120:4(485)}.
+
+\bibitem[Vogel and Fennessey, 1995]{VogelFennessey1995JAWRAb}
+Vogel, R.M. and Fennessey, N.M. (1995).
+\newblock Flow Duration Curves II: A Review of Applications in Water Resources Planning.
+\newblock {\em Journal of the American Water Resources Association}, \textbf{31}(6):1029--1039, \doi{10.1111/j.1752-1688.1995.tb03419.x}.
+
+\end{thebibliography}
+
+
+<<echo=FALSE>>=
+options(prompt="> ", continue="+ ")
+@
+
+\end{document}
+

@@ -1,0 +1,557 @@
+\documentclass[a4paper, 10pt]{article}
+\usepackage{graphics}                 % Packages to allow inclusion of graphics
+\usepackage[utf8]{inputenc}   % To allow umlaut
+\usepackage[pdftex]{graphicx}
+\usepackage{fancyhdr}
+\usepackage[figuresright]{rotating}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\usepackage{doi}
+\usepackage{natbib}
+%\usepackage{/usr/local/lib/R/share/texmf/tex/latex/Sweave}   % old pc
+\usepackage{/usr/share/R/share/texmf/tex/latex/Sweave}  % new pc
+
+\usepackage{colortbl}      
+\newcommand{\comm}[1]{\textcolor{red}{#1}}    
+\newcommand{\readerhelp}[1]{\noindent\colorbox{yellow}{\textcolor{cyan}{(#1)}}}
+
+%\usepackage{unicode-math}  % for bold greek letters
+
+
+
+% Margini
+\setlength{\textwidth} {180mm}
+\setlength{\textheight}{255mm}      %Altezza testo 227 mm
+%\setlength{\topmargin} {0.1mm}
+
+\setlength{\evensidemargin}{-10mm} %Margini per l'opzione twoside
+\setlength{\oddsidemargin} {-10mm}
+\setlength{\topmargin}{-20mm}
+
+
+%\VignetteIndexEntry{Chapter 08: Prediction of low flows in ungauged basins - an Austrian example}
+
+% Header
+\pagestyle{fancy}
+
+% For figure numbering
+\numberwithin{figure}{section}
+
+\setkeys{Gin}{width=0.49\textwidth}
+
+\SweaveOpts{keep.source=TRUE, include=TRUE, width=5, height=3.3, echo=TRUE, results=verbatim}
+
+
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{.5\baselineskip}
+
+% units of measurements
+\newcommand{\udm}[1]{\ensuremath{{\rm #1}}}
+
+
+% colori delle scritte
+\definecolor{darkred}{rgb}{0.545,0,0} 
+\definecolor{midnightblue}{rgb}{0.098,0.098,0.439}
+\DefineVerbatimEnvironment{Sinput}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{midnightblue}}}
+\DefineVerbatimEnvironment{Soutput}{Verbatim}{xleftmargin=2em, fontsize=\tiny, formatcom={\color{darkred}}}
+\DefineVerbatimEnvironment{Scode}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{blue}}}
+\fvset{listparameters={\setlength{\topsep}{0pt}}}
+\renewenvironment{Schunk}{\vspace{\topsep}}{\vspace{\topsep}}
+
+
+
+
+
+
+
+
+
+\title{Chapter 8: Prediction of low flows in ungauged basins - an Austrian example}
+\author{Gregor Laaha}
+\date{}
+
+
+
+
+\begin{document}
+\maketitle
+
+<<echo=FALSE>>=
+options(width=180)
+options(prompt=" ", continue=" ")
+@
+
+
+
+
+\section{Introduction}
+
+This Tutorial has been developed by \href{http://www.rali.boku.ac.at/iasc/personen/laaha-gregor/}{Gregor Laaha} to illustrate the regional prediction of low flows \citep[see,][]{Laahaetal2013PUBbookCh8}.
+
+
+<<echo=FALSE>>=
+options(width=180)
+@
+
+
+First of all load the library:
+<<>>=
+library(PUBexamples)
+@
+
+%   x0 <- read.table("zone1_30.txt", header=T, sep="\t")
+%   
+%   library(RPostgreSQL)
+%   drv <- dbDriver("PostgreSQL")
+%   con <- dbConnect(drv, dbname="hydrologicdata")
+%   
+%    dummy <- paste("code='", x0$ZWEZNR, sep="", collapse="' OR ")
+%   
+%    stazioni_gregor <- dbGetQuery(con, paste("SELECT code, info[8] AS river, info[2] AS station, lon::real, lat::real, elev::real FROM view_stations_position WHERE ", dummy, "';", sep=""))
+%   
+%    #dbGetQuery(con, paste("SELECT * FROM view_timeseries WHERE what='lumped catchment daily input' AND (", dummy, "');", sep=""))
+%    avginputs7608 <- dbGetQuery(con, paste("SELECT code, 365.25*avg(prec) AS prec, avg(temp) AS temp, 365.25*avg(pet) AS pet 
+%                                              FROM (SELECT code, t[2]::real AS prec, t[3]::real AS temp, t[4]::real AS pet 
+%                                                      FROM (SELECT code, reduce_dim(values) AS t 
+%                                                              FROM timeseries 
+%                                                             WHERE what='lumped catchment daily input' 
+%                                                               AND (", dummy, "')) AS foo) AS foo2 GROUP BY code;", sep=""))
+%    avgoutputs7608 <- dbGetQuery(con, paste("SELECT code, avg(q) AS q
+%                                               FROM (SELECT code, t[2]::real AS q
+%                                                       FROM (SELECT code, reduce_dim(values) AS t 
+%                                                               FROM timeseries 
+%                                                              WHERE what='mean daily discharge (m3/s)' AND description = 'date, mean daily discharge' 
+%                                                                AND (", dummy, "')) AS foo) AS foo2 GROUP BY code;", sep=""))
+%   
+%    areas <- dbGetQuery(con, paste("SELECT code, values[1]::real AS area FROM stations WHERE what='catchment area' AND (", dummy, "') AND source='10';", sep=""))
+%    cat_elevs <- dbGetQuery(con, paste("SELECT code, values[1]::real AS cat_elev FROM stations WHERE what='catchment elevation' AND (", dummy, "');", sep=""))
+%    #precs <- dbGetQuery(con, paste("SELECT code, values[1]::real AS prec FROM stations WHERE what='catchment precipitation stats' AND (", dummy, "');", sep=""))
+%    
+%    dummy <- merge(stazioni_gregor, areas)
+%    dummy <- merge(dummy, cat_elevs)
+%    dummy <- merge(dummy, avginputs7608)
+%    dummy <- merge(dummy, avgoutputs7608)
+%   
+%    dummy$runoff <- round(365.25*24*3.6*dummy$q/dummy$area) 
+%    dummy$cat_elev <- round(dummy$cat_elev)
+%    dummy$prec <- round(dummy$prec)
+%    dummy$pet <- round(dummy$pet)
+%    dummy$temp <- round(dummy$temp, 2)
+%    dummy <- dummy[,-12]  # -q
+%   
+%    # Budyko: 
+%    # plot(dummy$pet/dummy$prec, (dummy$prec - dummy$runoff)/dummy$prec, xlim=c(0,2), ylim=c(0,1)); abline(0,1); abline(h=1)
+%    # OK!
+%   
+%    data4chapter8 <- merge(dummy, x0, by.x="code", by.y="ZWEZNR")
+%   
+%   dbDisconnect(con)
+%   dbUnloadDriver(drv)
+%   save(data4chapter8, file="data4chapter8.rda")
+
+
+
+
+Then the data:
+<<>>=
+data(data4chapter8)
+
+data4chapter8
+data4chapter8[1:3,]
+head(data4chapter8)
+str(data4chapter8)         # Shows data structure (variable types!)
+dim(data4chapter8)         # dimension
+nrow(data4chapter8)        # number of rows
+ncol(data4chapter8)        # number of colums
+
+x0 <- data4chapter8[,-c(2:12)]
+@
+
+
+
+
+Budyko:
+<<>>=
+PETovP <- data4chapter8$pet/data4chapter8$prec
+ETovP <- (data4chapter8$prec - data4chapter8$runoff)/data4chapter8$prec
+@
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh8_0_1.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+colori <- rev(rainbow(20, start=0, end=.45, alpha=1))
+plot(PETovP, ETovP, xlim=c(0,3), ylim=c(0,1), pch=21,
+     bg=colori[round(10*PETovP)],
+     cex=log10(data4chapter8$area)) 
+ segments(x0=c(0,1), y0=c(0,1), x1=c(1,4), y1=c(1,1), lty=2)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh8_0_1}
+\end{center}
+
+
+
+Plot the data on a map:
+<<>>=
+library(rworldmap)
+newMap <- getMap(resolution="low")
+@
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh8_0_2.pdf", height=5, width=8.4, pointsize=10)
+par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(newMap, xlim=c(11.5, 15.5), ylim=c(46, 49))
+ points(data4chapter8$lon, data4chapter8$lat, pch=21,
+        bg=colori[round(10*PETovP)],
+        cex=log10(data4chapter8$area))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigCh8_0_2}
+\end{center}
+
+
+
+
+
+
+
+\section{Simple linear regression}
+
+<<>>=
+x <- x0
+x.lm <- lm(Q95 ~ N.GES, data=x)
+
+summary(x.lm)
+str(x.lm) # explore the fitted model object
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh8_1_1.pdf", height=6, width=7.2, pointsize=10)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:4, nrow=2, byrow=TRUE))
+plot(x.lm)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.8\textwidth]{FigCh8_1_1}
+\end{center}
+
+
+
+\section{Stepwise regression}
+
+First create fomula object, to serve as a scope of model fitting (all potential predictors).
+<<>>=
+x.form <- formula(~ H.MIN + H.MAX + H.DIFF + H.MEAN + M.NEIG + SL.FL + SL.MG + SL.ST +
+                    N.GES + N.SOM + N.WIN + GEOL.BM + GEOL.QUA + GEOL.TER + GEOL.FLY + GEOL.KAL +
+                    GEOL.KRI + GEOL.SHAL + GEOL.DEEP + GEOL.QUELL + BONU.URB + BONU.ACK + BONU.DAU +
+                    BONU.GRU + BONU.WAL + BONU.LOS + BONU.WAS + SDENS)
+# better automatic:
+x.form <- as.formula(paste("~", paste(names(x)[-(1:6)], collapse="+")))
+@
+
+Add one additional variable with highest explicative value:
+<<>>=
+add1(x.lm, scope=x.form)
+@
+Drop one predictor included in the model with least explicative value:
+<<>>=
+drop1(x.lm)
+@
+
+
+Now atomatically - stepwise regression with \verb+step+:
+<<>>=
+x <- x0
+x.lm0 <- lm(Q95 ~ N.GES, data=x)
+x.lm1 <- step(x.lm0, scope=x.form)
+summary(x.lm1)
+anova(x.lm1)    # also possible to have an anova-like F-test of predictor significance
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh8_2_1.pdf", height=6, width=7.2, pointsize=10)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:4, nrow=2, byrow=TRUE))
+plot(x.lm1)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.8\textwidth]{FigCh8_2_1}
+\end{center}
+
+
+
+Again stepwise - after eliminating outliers:
+\begin{enumerate}
+\item Detect outliers based on Cook's distance (in diagnosis plots)
+\item Now eliminate outliers manually
+<<>>=
+x <- x0[-c(12),]
+dim(x)
+@
+\item Then: back to start! (model fitting...)
+\end{enumerate} 
+
+
+
+\section{More plotting}
+
+A) show model performance in a scatter plot (predicted vs. observed values)
+<<>>=
+attributes(x.lm1)
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh8_3_1.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(x.lm1$model$Q95 , x.lm1$fitted.values, xlab="observed", ylab="predicted")
+ abline(lsfit(x.lm1$model$Q95, x.lm1$fitted.values))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.5\textwidth]{FigCh8_3_1}
+\end{center}
+
+B) What is the contribution of each predictor to the model estimate? => templot ... plots each regression term \verb+(BETAj*xj)+ against its predictor \verb+xj+
+<<eval=F>>=
+termplot(x.lm1, partial=TRUE)
+# Gregor!! this gives me the following error:
+# Error in xy.coords(x, y) : 'x' and 'y' lengths differ
+@
+
+
+\section{Robust regression}
+
+This is alternative to manual outlier detection.
+
+<<>>=
+library(robustbase)
+@
+<<>>=
+x.lm1$call
+x.lts <- ltsReg(formula = Q95 ~ GEOL.SHAL + GEOL.KRI + M.NEIG + H.MIN, data=x, alpha=0.9)
+summary(x.lts)
+attributes(x.lts)
+<<eval=F>>=
+add1(x.lts, scope=x.form)
+# Gregor!! this gives me the following error:
+# Error:  chunk 23 
+# Error in UseMethod("extractAIC") : 
+#   no applicable method for 'extractAIC' applied to an object of class "lts"
+@
+
+
+<<eval=FALSE>>=
+plot(x.lts)
+@
+
+
+% -------------------------------------------------------------------------- %
+
+\section{Jackknife cross-validation}
+
+We keep the identified model structure and remove one site at the time, which is in turn used for validation:
+<<>>=
+obsQ95 <- x0$Q95
+ names(obsQ95) <- x0$code
+predQ95cv <- rep(NA, length(x0$Q95))
+ names(predQ95cv) <- x0$code
+for (i in 1:length(x0$code)) {
+ Target.code <- x0$code[i]  # Target Site
+ # Target site characteristics
+ Target.x0 <- x0[which(x0$code == Target.code),]
+ # Regional sample without Target site
+ Reg.x0 <- x0[-which(x0$code == Target.code),]
+ # Regression
+ x.lmReg <- lm(formula=Q95 ~ BONU.WAS + GEOL.SHAL + M.NEIG + GEOL.KRI, data=Reg.x0)
+ # Predict at target
+ predQ95cv[i] <- predict(object=x.lmReg, newdata=Target.x0)
+}
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh8_5_1.pdf", height=3, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(obsQ95, predQ95cv, xlab="observed", ylab="predicted (cross-val)", pch=21,
+     bg=colori[round(10*PETovP)],
+     cex=log10(data4chapter8$area),
+     xlim=range(c(obsQ95,predQ95cv)), ylim=range(c(obsQ95,predQ95cv)))
+ abline(0, 1, lty=3)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.5\textwidth]{FigCh8_5_1}
+\end{center}
+
+
+% -------------------------------------------------------------------------- %
+
+\section{Compare to the PUB book assessment}
+
+In the Level 2 Assessment of the PUB book \citep{Bloeschletal2013PUBbook} in Chapter 8 the normalised error and the absolute normalised error in the estimation of Q95 is calculated.
+<<>>=
+NE <- (predQ95cv - obsQ95)/obsQ95
+ANE <- abs(NE)
+tabella <- data.frame(data4chapter8[,c("code", "area", "temp", "cat_elev")], aridity=PETovP, NE=round(NE, 3), ANE=round(ANE, 3))
+ tabella
+@
+
+<<>>=
+aridity_class <- cut(tabella$aridity, breaks=c(-Inf,0.4,0.6,0.8,1,2,Inf))
+temp_class <- cut(tabella$temp,  breaks=c(-Inf,3,6,8,10,12,Inf))
+elev_class <- cut(tabella$cat_elev, breaks=c(0,300,600,900,1200,1500,Inf))
+area_class <- cut(tabella$area, breaks=c(0,50,100,500,1000,5000,Inf))
+@
+
+Notice that the method used here is a global regression.
+
+
+<<>>=
+add_points <- function(performance="ANE", variable="area", classes, table) {
+ # to add points in a nice way
+ for (j in 1:length(levels(classes))) {
+  dummy <- table[as.numeric(classes) == j,]
+  perf <- dummy[, performance]
+  stratif <- dummy[, variable]
+  if (length(stratif) > 0) {
+   if (length(stratif) == 1) {
+    points(j, perf, pch=21, 
+           bg=colori[round(10*dummy$aridity)],
+           cex=log10(dummy$area))
+   } else {
+      points(j + 0.1*(stratif - mean(stratif))/sd(stratif),
+             perf, pch=21,
+             bg=colori[round(10*dummy$aridity)],
+             cex=log10(dummy$area))
+   }
+  }
+ }
+}
+@
+
+Fig 8.19 at page 185 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh8_6_1.pdf", height=2.8, width=10.4, pointsize=10)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:4, nrow=1, byrow=TRUE))
+plotPUBfiguresLevel2(chapter=8, method="Global_regr", performance="ANE",
+                     characteristic="Aridity", ylim=c(2,0),
+                     main="Global_regr")
+ add_points(performance="ANE", variable="aridity", classes=aridity_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=8, method="Global_regr", performance="ANE",
+                     characteristic="MAT", ylim=c(2,0))
+ add_points(performance="ANE", variable="temp", classes=temp_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=8, method="Global_regr", performance="ANE",
+                     characteristic="Elevation", ylim=c(2,0))
+ add_points(performance="ANE", variable="cat_elev", classes=elev_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=8, method="Global_regr", performance="ANE",
+                     characteristic="Area", ylim=c(2,0))
+ add_points(performance="ANE", variable="area", classes=area_class, table=tabella)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh8_6_1}
+\end{center}
+
+
+Fig 8.20 at page 186 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh8_6_2.pdf", height=2.8, width=10.4, pointsize=10)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:4, nrow=1, byrow=TRUE))
+plotPUBfiguresLevel2(chapter=8, method="Global_regr", performance="NE",
+                     characteristic="Aridity", ylim=c(-.9,.9),
+                     main="Global_regr"); abline(h=0, lty=3)
+ add_points(performance="NE", variable="aridity", classes=aridity_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=8, method="Global_regr", performance="NE",
+                     characteristic="MAT", ylim=c(-.9,.9)); abline(h=0, lty=3)
+ add_points(performance="NE", variable="temp", classes=temp_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=8, method="Global_regr", performance="NE",
+                     characteristic="Elevation", ylim=c(-.9,.9)); abline(h=0, lty=3)
+ add_points(performance="NE", variable="cat_elev", classes=elev_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=8, method="Global_regr", performance="NE",
+                     characteristic="Area", ylim=c(-.9,.9)); abline(h=0, lty=3)
+ add_points(performance="NE", variable="area", classes=area_class, table=tabella)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh8_6_2}
+\end{center}
+
+
+
+
+
+
+
+\begin{thebibliography}{}
+
+\bibitem[Blöschl et al., 2013]{Bloeschletal2013PUBbook}
+Blöschl, G., Sivapalan, M., Wagener, T., Viglione, A. and Savenije, H. (2013)
+\newblock {\em Runoff Prediction in Ungauged Basins: Synthesis Across Processes, Places and Scales}, University Press, Cambridge, 484 pages, ISBN:9781107028180. 
+
+\bibitem[Laaha et al., 2013]{Laahaetal2013PUBbookCh8}
+Laaha, G., Demuth, S., Hisdal, H., Kroll, C.N., van Lanen, H.A.J. Nester, T., Rogger, M., Sauquet, E., Tallaksen, L.M., Woods R.A. and Young A. (2013).
+\newblock Prediction of low flows in ungauged basins.
+\newblock In {\em Runoff Prediction in Ungauged Basins: Synthesis Across Processes, Places and Scales}, University Press, Cambridge, 163-188, ISBN:9781107028180.
+
+\end{thebibliography}
+
+
+<<echo=FALSE>>=
+options(prompt="> ", continue="+ ")
+@
+
+\end{document}
+

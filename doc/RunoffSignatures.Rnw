@@ -1,0 +1,724 @@
+\documentclass[a4paper, 10pt]{article}
+\usepackage{graphics}                 % Packages to allow inclusion of graphics
+\usepackage[utf8]{inputenc}   % To allow umlaut
+\usepackage[pdftex]{graphicx}
+\usepackage{fancyhdr}
+\usepackage[figuresright]{rotating}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\usepackage{doi}
+\usepackage{natbib}
+%\usepackage{/usr/local/lib/R/share/texmf/tex/latex/Sweave}   % old pc
+\usepackage{/usr/share/R/share/texmf/tex/latex/Sweave}  % new pc
+
+\usepackage{colortbl}      
+\newcommand{\comm}[1]{\textcolor{red}{#1}}    
+\newcommand{\readerhelp}[1]{\noindent\colorbox{yellow}{\textcolor{cyan}{(#1)}}}
+
+%\usepackage{unicode-math}  % for bold greek letters
+
+
+
+% Margini
+\setlength{\textwidth} {180mm}
+\setlength{\textheight}{255mm}      %Altezza testo 227 mm
+%\setlength{\topmargin} {0.1mm}
+
+\setlength{\evensidemargin}{-10mm} %Margini per l'opzione twoside
+\setlength{\oddsidemargin} {-10mm}
+\setlength{\topmargin}{-20mm}
+
+
+%\VignetteIndexEntry{Runoff signatures from runoff timeseries - an Austrian example}
+
+% Header
+\pagestyle{fancy}
+
+% For figure numbering
+\numberwithin{figure}{section}
+
+\setkeys{Gin}{width=0.49\textwidth}
+
+\SweaveOpts{keep.source=TRUE, include=TRUE, width=5, height=3.3, echo=TRUE, results=verbatim}
+
+
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{.5\baselineskip}
+
+% units of measurements
+\newcommand{\udm}[1]{\ensuremath{{\rm #1}}}
+
+
+% colori delle scritte
+\definecolor{darkred}{rgb}{0.545,0,0} 
+\definecolor{midnightblue}{rgb}{0.098,0.098,0.439}
+\DefineVerbatimEnvironment{Sinput}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{midnightblue}}}
+\DefineVerbatimEnvironment{Soutput}{Verbatim}{xleftmargin=2em, fontsize=\tiny, formatcom={\color{darkred}}}
+\DefineVerbatimEnvironment{Scode}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{blue}}}
+\fvset{listparameters={\setlength{\topsep}{0pt}}}
+\renewenvironment{Schunk}{\vspace{\topsep}}{\vspace{\topsep}}
+
+
+
+
+
+
+
+
+
+\title{Runoff signatures from runoff timeseries - an Austrian example}
+\author{Alberto Viglione}
+\date{}
+
+
+
+
+\begin{document}
+\maketitle
+
+<<echo=FALSE>>=
+options(width=180)
+options(prompt=" ", continue=" ")
+@
+
+
+
+
+\section{Introduction}  \label{s:intro}
+
+Following \citet{Jothityangkoonetal2001} and \citet{Ederetal2003HP}, the temporal patterns of the observed runoff response of catchments, when viewed at different time scales, are termed runoff `signatures', and deemed emergent patterns.
+We term them `signatures' because they are considered as reflections of the overall functioning of the catchments, including the co-evolutionary features of the catchments' surface and subsurface architecture.
+
+Runoff variability at any location is a temporal continuum covering a wide range of time scales, but the characteristics one sees depend on the temporal scale one chooses to look at.
+This is because catchments exhibit the characteristics of complex systems, so different patterns emerge at different time scales.
+At time scales of seconds one may recognise the effects of turbulence and wave action in the runoff.
+At time scales of millennia, if such data were available as in the case of \citet{Jeffersonetal2010ESPL}, one would recognise long-term climate and landscape evolution trends.
+There may be several emergent patterns in the time domain and they are all inter-connected because they are all the result of the same complex system and co-evolutionary processes.
+
+Depending on the collective behaviour of the catchment processes and the underlying drivers, the runoff signatures may differ.
+Therefore they can be seen as windows that enable us to look into the catchment dynamics at different time scales.
+They help us to understand the system holistically.
+Signatures provide insights into catchment processes, and are thus outward manifestations of the internal dynamics of the catchment.
+
+As in \citet{Bloeschletal2013PUBbook} and \citet{Viglioneetal2013HESSpub3}, we consider six signatures, each of them meaningful of a certain class of applications of societal relevance: annual runoff, seasonal runoff, flow duration curves, low flows, high flows and runoff hydrographs.
+Annual runoff is a reflection of the catchment dynamics at relatively long time scales, which is particularly evident in its between year variability.
+It is related to the hydrological problem of how much water is available \citep[see e.g.][]{McMahonetal2011JHM}, which is fundamental for water management purposes such as water allocation, long-term planning, groundwater recharge etc.
+Seasonal runoff reflects the within-year variability.
+It addresses the question of when water is available throughout the year \citep[see e.g.][]{Sauquetetal2008HR, Hannahetal2011HP} and is necessary to plan water supply, hydropower production and river restoration measures.
+The flow duration curve represents the full spectrum of variability in terms of their magnitudes.
+It measures for how many days in a year water is available \citep{VogelFennessey1994JWRPMa, VogelFennessey1995JAWRAb} and is the basis of studies on river ecology, hydropower potential, industrial, domestic and irrigation water supply.
+Low flows focus on the low end of that spectrum, and so provide a window into catchment dynamics when there is little water in the system, and high flows are at the opposite end, when there is much water in the system.
+Low flow statistics \citep{Smakhtin2001JoH} are needed to estimate environmental flows for ecological stream health, for drought management, river restoration, dilution of effluents etc.
+High flow (flood) statistics \citep{MerzBloeschl2008aWRR, MerzBloeschl2008bWRR}, instead, are required for the design of spillways, culverts, dams and levees, for reservoir management, river restoration and risk management.
+Hydrographs are a complex combination of all other signatures.
+They are the most detailed signatures of how catchments respond to water and energy inputs \citep{Parajkaetal2013HESSpub1}.
+They can be used for all the applications listed above and are specifically needed when the dynamics of runoff have to be taken into account, such as for water quality studies.
+
+
+\vspace{1cm}
+
+The objective of this document is to illustrate how to calculate runoff signatures (but also precipitation and potential evaporation signatures) using R.
+
+First of all load the library:
+<<>>=
+library(PUBexamples)
+@
+
+We consider data from 8 catchments in Austria, which are those that we will use also when illustrating runoff modelling in ungauged basins \citep[see Chapter 10 in][]{Bloeschletal2013PUBbook}.
+<<eval=FALSE>>=
+help(data4chapter10)
+@
+<<>>=
+data(data4chapter10)
+
+str(ObsDischarges)
+
+valCatChar <- CatChar[CatChar$idnr %in% names(ObsDischarges),]
+ valCatChar
+@
+
+
+Plot stations on a map:
+<<>>=
+library(rworldmap)
+newMap <- getMap(resolution="coarse")  # you may use resolution="low"
+@
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigChRS_0_1.pdf", height=5, width=8.4, pointsize=10)
+par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+colori <- rainbow(length(valCatChar$idnr), start=0, end=.8)
+ names(colori) <- valCatChar$idnr
+plot(newMap, xlim=c(11.5, 15.5), ylim=c(46, 49))
+ points(valCatChar$lon, valCatChar$lat, pch=21,
+        bg=colori,
+        cex=log10(valCatChar$area))
+ text(valCatChar$lon, valCatChar$lat, valCatChar$idnr,
+      pos=4, col=4)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigChRS_0_1}
+\end{center}
+
+
+
+You may want to search them on GoogleMaps, for example:
+\begin{itemize}
+\item 200287, Subersach at Schoenenbac (Hengstig) \url{www.google.at/maps/place/47.3864,10.0411};
+\item 204768, Osternach at Osternach \url{www.google.at/maps/place/48.3136,13.4539};
+\item ...
+\end{itemize}
+
+Now select one station, display the data and calculate the runoff signatures. 
+
+
+
+
+
+
+
+
+
+\section{Timeseries}
+
+I select, for example, the first catchment: 200287, Subersach at Schoenenbac (Hengstig).
+<<>>=
+#idnr='200287'
+idnr='212647'
+@
+
+
+Read the observed discharges and put it into a \verb+zoo+ object:
+<<>>=
+library(zoo)
+
+data <- ObsDischarges[[idnr]]
+ head(data, 20)
+
+days <- as.Date(strptime(paste(data[,1], data[,2], data[,3]), format="%d %m %Y"))
+Q <- zoo(data[,4], order.by=days)    # daily discharge (m3/s)
+@
+which can be plotted with the following code:
+<<eval=FALSE>>=
+# all timeseries
+plot(Q)
+
+# zoom
+plot(Q, xlim=as.Date(c("2001-09-01","2003-08-31")))
+
+# alternatively, window of a timeseries
+plot(window(Q, start=as.Date("2001-09-01"), end=as.Date("2003-08-31")))
+@
+
+
+Since we have also the catchment inputs for rainfall runoff modelling, let's use them too:
+<<>>=
+data <- ModelInput[[idnr]]
+ head(data, 20)
+
+days <- as.Date(strptime(paste(data[,1], data[,2], data[,3]), format="%d %m %Y"))
+P <- zoo(data[,4], order.by=days)     # daily catchment precipitation (mm/d)
+T <- zoo(data[,5], order.by=days)     # mean daily catchment temperature (deg C)
+EP <- zoo(data[,6], order.by=days)    # mean daily pot.evaporation (mm/d)
+@
+which can be plotted in the same way as before.
+
+It would be nice to plot, for example, runoff, precipitation and potential evaporation on the same graph.
+We can do it if we scale the runoff by the area:
+<<>>=
+area <- CatChar[CatChar$idnr == idnr, "area"]
+Qmm <- 24*3.6*Q/area  # conversion of discharge from m3/s to mm/d
+@
+
+
+Now create a function which plots everything on the same plot
+<<>>=
+plot_3timeseries <- function (prec, et, dis, ...) {
+ # ... can be used to give xlim
+ plot(dis, ylim=c(-max(dis), 2*max(dis)), yaxt="n", 
+      xlab="", ylab="", ...)
+  axis(2, at=round(signif(seq(0, max(dis), length=5), 2)))
+  abline(h=0, lty=3)
+ par(new=TRUE)
+ plot(time(prec), as.numeric(prec), col="blue", type="l", 
+      ylim=rev(c(0, 3*max(prec))), 
+      xlab="", ylab="", axes=FALSE, ...)
+  axis(4, at=round(signif(seq(0, max(prec), length=5), 2)))
+ par(new=TRUE)
+ deltaet <- max(et) - min(et)
+ plot(time(et), as.numeric(et), col="orange", type="l", 
+      ylim=c(min(et), max(et) + 2.5*deltaet),  
+      xlab="", ylab="", axes=FALSE, ...)
+  axis(4, at=round(signif(seq(min(et), max(et), length=5), 2), 1))
+}
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigChRS_0_2.pdf", height=2.8, width=6.4, pointsize=8)
+par(mar=c(3,3,1,3)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=1)
+@
+<<fig=FALSE, eval=TRUE>>=
+plot_3timeseries(prec=P, et=EP, dis=Qmm, xlim=as.Date(c("2001-09-01","2003-08-31")))
+title("rainfall, runoff and potential evaporation (mm/d)", cex.main=1, font.main=1)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigChRS_0_2}
+\end{center}
+
+
+
+
+Investigate the series at the yearly time scale
+<<echo=TRUE, eval=FALSE>>=
+t=1
+Deltat=365
+while (t <= length(P) - Deltat - 1) {
+ plot_3timeseries(P[seq(t, t + Deltat)],
+                  EP[seq(t, t + Deltat)],
+                  Qmm[seq(t, t + Deltat)])
+  title(main=paste(as.Date(range(time(P[seq(t, t + Deltat)]))), collapse=" --> "),
+        cex.main=1, font.main=1)
+ readline() 
+ t <- t + Deltat
+}
+@
+
+
+
+
+
+
+% --------------------------------------------------------------------------------------------------- %
+
+\section{Annual precipitation, potential evaporation and runoff}
+
+We define annual runoff as the total volume of water discharging past a point of interest in a river or stream in one year divided by the contributing catchment area.
+Using this definition, the units of runoff are usually mm/yr.
+Annual rainfall over the catchment and potential evapotranspiration have the same unit.
+
+<<>>=
+Qmm_yr <- aggregate(Qmm, format(time(Qmm), "%Y"), FUN=sum)  # mm/yr
+P_yr <- aggregate(P, format(time(P), "%Y"), FUN=sum)
+EP_yr <- aggregate(EP, format(time(P), "%Y"), FUN=sum)
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigChRS_1_1.pdf", height=2.8, width=4.6, pointsize=8)
+par(mar=c(3,3,1,3)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=0)
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(Qmm_yr, type="b", ylim=c(0,3000), xlab="", ylab="(mm/yr)")
+lines(P_yr, type="b", pch=6, col="blue")
+lines(EP_yr, type="b", pch=2, col="orange")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigChRS_1_1}
+\end{center}
+
+<<>>=
+summary(cbind(Qmm_yr, P_yr, EP_yr))
+@
+
+
+
+
+
+\subsection{Seasonal precipitation, potential evaporation and runoff}
+
+The focus of this section is on the mean seasonal pattern of runoff variability over the annual cycle (hydrological year), which is termed the `seasonal flow regime', or `flow regime' for short.
+
+First I get the monthly timeseries
+<<>>=
+Qmm_m <- aggregate(Qmm, as.yearmon(time(Qmm)), FUN=function(x){30.43*mean(x)})  # mm/mon
+P_m <- aggregate(P, as.yearmon(time(P)), FUN=function(x){30.43*mean(x)})
+EP_m <- aggregate(EP, as.yearmon(time(EP)), FUN=function(x){30.43*mean(x)})
+@
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigChRS_2_1.pdf", height=2.8, width=6.4, pointsize=8)
+par(mar=c(3,3,1,3)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=1)
+@
+<<fig=FALSE, eval=TRUE>>=
+plot_3timeseries(prec=P_m, et=EP_m, dis=Qmm_m)
+title("rainfall, runoff and potential evaporation (mm/mon)", cex.main=1, font.main=1)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigChRS_2_1}
+\end{center}
+
+
+Then I calculate statistics for the regimes:
+<<>>=
+mQmm_m <- aggregate(Qmm_m, format(time(Qmm_m), "%m"), mean)  # mm/mon
+mP_m <- aggregate(P_m, format(time(P_m), "%m"), mean)  
+mEP_m <- aggregate(EP_m, format(time(EP_m), "%m"), mean)  
+
+qQmm_m <- aggregate(Qmm_m, format(time(Qmm_m), "%m"), quantile)  # mm/mon
+qP_m <- aggregate(P_m, format(time(P_m), "%m"), quantile) 
+qEP_m <- aggregate(EP_m, format(time(EP_m), "%m"), quantile) 
+@
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigChRS_2_2.pdf", height=2.8, width=4.6, pointsize=8)
+par(mar=c(3,3,1,3)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=0)
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(c(1,12), c(0,500), type="n", xlab="", ylab="mm/mon",
+     xaxt="n")
+  axis(1, at=1:12, labels=month.abb, las=2)
+ polygon(c(1:12,12:1), c(as.numeric(qP_m$`25%`), rev(as.numeric(qP_m$`75%`))),
+         border=NA, col="#0000FF44")
+  lines(1:12, as.numeric(qP_m$`50%`), col="#0000FF44", lty=2)
+  lines(1:12, as.numeric(mP_m), col="blue")
+ polygon(c(1:12,12:1), c(as.numeric(qEP_m$`25%`), rev(as.numeric(qEP_m$`75%`))),
+         border=NA, col="#FFA50044")
+  lines(1:12, as.numeric(qEP_m$`50%`), col="#FFA50044", lty=2)
+  lines(1:12, as.numeric(mEP_m), col="orange")
+ polygon(c(1:12,12:1), c(as.numeric(qQmm_m$`25%`), rev(as.numeric(qQmm_m$`75%`))),
+         border=NA, col="#00000044")
+  lines(1:12, as.numeric(qQmm_m$`50%`), col="#00000044", lty=2)
+ lines(1:12, as.numeric(mQmm_m))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigChRS_2_2}
+\end{center}
+
+
+
+
+
+
+\subsection{Flow duration curves}
+
+A feature of runoff variability that has considerable practical relevance is the period of time runoff remains higher than a specified magnitude, otherwise known as `flow duration'.
+The flow duration curve (FDC) is a graphical representation of the frequency, or the fraction of time (hence the word duration) during which a specified magnitude of runoff is equalled or exceeded.
+Representation of the entire runoff hydrograph time series (typically daily runoff, but it can also be hourly, or even monthly) in the form of the FDC makes the latter a compact signature of runoff variability, and a valuable tool to diagnose rainfall-runoff responses in gauged catchments at a holistic level, and to regionalise them to ungauged catchments.
+However, by representing runoff variability in the frequency domain as the FDC, information on the timing of the runoff response is lost.
+The latter is better reflected in the basin’s runoff seasonal flow regime and, of course, in the complete runoff hydrograph.
+
+The FDCs (for daily runoff) can be constructed empirically for gauged sites by
+(i) ranking observed runoff in ascending order
+and (ii) plotting each ordered observation versus its corresponding duration (e.g., in days), or its fractional duration (which is dimensionless).
+
+
+<<>>=
+quantili <- c(1,.999,.995, seq(.99,.01, by=-.01), .005,.001,0)
+Q_fdc <- quantile(Q, prob=quantili)
+ head(Q_fdc)
+@
+
+The FDC can be constructed for the entire runoff record giving a long-term representation of the runoff regime, or as an ensemble of annual FDCs (AFDCs) estimated for each year of record \citep{VogelFennessey1994JWRPMa, VogelFennessey1995JAWRAb, Castellarinetal2007AWR}.
+To calculate confidence bounds for AFDCs we do:
+<<>>=
+Q_afdc <- sapply(split(Q, format(time(Q), "%Y")), quantile, prob=quantili)
+ head(Q_afdc)
+@
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigChRS_3_1.pdf", height=2.8, width=4.6, pointsize=8)
+par(mar=c(3,3,1,3)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="i", las=0)
+@
+<<fig=FALSE, eval=TRUE>>=
+mQ_afdc <- apply(Q_afdc, 1, mean)
+qQ_afdc <- apply(Q_afdc, 1, quantile)
+plot(c(0,1), c(1e-1,5e1), type="n", xlab="F(x > X)", ylab="mm/d", log="y")
+ grid(equilogs=FALSE)
+ polygon(c(1-quantili, quantili), c(as.numeric(qQ_afdc["25%",]), rev(as.numeric(qQ_afdc["75%",]))),
+         border=NA, col="#00000044")
+ lines(1-quantili, as.numeric(qQ_afdc["50%",]), col="#00000044", lty=2)
+ lines(1-quantili, as.numeric(mQ_afdc))
+lines(1-quantili, as.numeric(Q_fdc), col=2, lty=2)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigChRS_3_1}
+\end{center}
+
+
+
+
+\subsection{Low flows}
+
+Depending on the application and the science question different low flow characteristics may be of interest \citep[see][]{Smakhtin2001JoH}:
+(i) characteristics that represent low flow runoff with a certain probability;
+(ii) characteristics that represent durations or deficit volumes of low flows; and
+(iii) characteristics that represent how quickly the low flow runoff decreases with time.
+Indices that relate to the first group (i.e., representing runoff) include the following:
+\begin{itemize}
+\item Flow quantiles ($Q_x$): runoff values exceeded $x\%$ of the time corresponding to points on the flow duration curve.
+For perennial streams, 90th or 95th quantiles (i.e., $Q_{90}$ and $Q_{95}$) are often used, while for intermittent or ephemeral streams, quantiles based on runoff within a typical runoff season, or quantiles with a lower exceedance probability (e.g., 60\%) may be more appropriate \citep{Smakhtin2001JoH}.
+Flow quantiles are relatively robust to measurement errors and anthropogenic effects, which has made them widely used around the world \citep{Smakhtin2001JoH}.
+\item Mean annual minimum flows over d consecutive days (MAM$_d$): long-term average of runoff during the driest period of each year.
+A moving average time window of 7 or 10 days is often used to remove fluctuations of the hydrograph due to measurement errors or anthropogenic effects.
+The choice of the moving window size may also depend on the problem at hand.
+The magnitudes of mean annual minimum flows over 7 or 10 consecutive days are often similar to $Q_{95}$ \citep[e.g.,][]{Smakhtin2001JoH}.
+\item Instead of the mean, annual low flows $Q_{d,T}$ of a given return period $T$ can be used, where $Q_{d,T}$ ($d$-day, $T$-year runoff) relates to the annual minimum $d$-day low flow that is expected to occur, on average, once every $T$ years.
+They are estimated by extreme value statistics from a $d$-day moving average of the daily hydrograph.
+The 7-day runoff with a return period of 10 years ($Q_{7,10}$) is often used in the USA and Canada.
+\end{itemize}
+
+
+Let's calculate $Q_{95}$ and MAM$_7$:
+<<>>=
+Q95 <- aggregate(Q, format(time(Q), "%Y"), quantile, prob=.05)
+
+dummy <- zoo(filter(Q, filter=rep(1,7)/7), time(Q))
+MAM7 <- aggregate(dummy, format(time(dummy), "%Y"), min, na.rm=TRUE)
+@
+
+Let's plot them in a plotting position:
+<<>>=
+points_pp_lows <- function (x, ...) {
+ # x = sample
+ ordered <- sort(x, decreasing=TRUE)
+ n <- length(ordered)
+ exceedencefreq <- seq(1,n)/(n+1)  # Weibull
+ points(exceedencefreq, ordered, ...)
+}
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigChRS_5_1.pdf", height=2.8, width=4.6, pointsize=8)
+par(mar=c(3,3,1,3)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="i", las=0)
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(c(0,1), c(0,.5), type="n", xlab="Exceedence frequency", ylab="mm/d")
+ points_pp_lows(as.numeric(Q95), col="black")
+ points_pp_lows(as.numeric(MAM7), col="red")
+legend("topright", legend=c(expression(q[95]), expression(MAM[7])), pch=1, col=c(1,2))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigChRS_5_1}
+\end{center}
+
+
+
+\subsection{High flows/floods}
+
+In the context of this exercise, flood prediction is defined as the estimation of flood runoff and the associated exceedance probability at an unknown future point in time, as opposed to real-time flood forecasting where forecasts are made for the immediate future.
+The focus is on river floods induced by heavy rain, sometimes in association with snowmelt, but dam breach floods, ice jam floods, and floods due to other processes are also possible.
+
+One of the ways that humanity has learned to live with floods is to understand the severity of flooding in terms of the frequency or probability of flooding.
+Hydrology then needs to understand the risk of rare or extreme events, and factor that risk in cost-benefit analyses of engineering decisions.
+Therefore, the quantity of interest in flood estimation is the magnitude of the flood (normally flood runoff at a particular point at a river, or the corresponding stage or water level) for a specified return period (also called average recurrence interval).
+An example is the so-called 100-year flood, the magnitude of the annual maximum flood that will be exceeded, on average, once in 100 years; put another way, there is a 1\% chance in any year that the largest flood of the year will exceed the 100-year magnitude.
+The choice of return period in specific circumstances depends on the risk society is prepared to accept, and is usually decided on the basis of consensus or cost-benefit analysis.
+For example, a lower return period might be accepted for design of a stormwater drain than for design of a dam spillway, since the potential damage is lower in the case of the former.
+This exercise is particularly concerned with the flood frequency curve.
+
+Let's calculate the maximum annual daily flows:
+<<>>=
+MAF <- aggregate(Q, format(time(Q), "%Y"), max)
+@
+
+Let's plot them in a plotting position:
+<<>>=
+points_pp_floods <- function (x, ...) {
+ # x = sample
+ ordered <- sort(x)
+ n <- length(ordered)
+ nonexceedencefreq <- seq(1,n)/(n+1)  # Weibull
+ RP <- 1/(1 - nonexceedencefreq)
+ points(RP, ordered, ...)
+}
+@
+
+Plot them:
+<<eval=FALSE>>=
+plot(c(1,100), c(0,100), type="n", xlab="Return period (yrs)", 
+     ylab="Maximum annual daily flow (mm/d)", log="x")
+ points_pp_floods(as.numeric(MAF), col="black")
+@
+
+
+Let's fit a Gumbel distribution.
+
+The density function of the Gumbel distribution is:
+\begin{equation*}
+ f(x) = \frac{1}{d} \exp\left(-\frac{x-c}{d}\right) \cdot \exp\left[-\exp\left(-\frac{x-c}{d}\right)\right]
+\end{equation*}
+where $x$ is the random variable and $c$ and $d$ the parameters.
+The cumulative distribution function is:
+\begin{equation*}
+ F(x) = \exp\left[-\exp\left(-\frac{x-c}{d}\right)\right]
+\end{equation*}
+The quantile function is:
+\begin{equation*}
+ x_T = c - d \cdot \ln\left[-\ln\left(1 - \frac{1}{T}\right)\right]
+\end{equation*}
+where $T$ is the return period and the parameters estimated with the method of moments are:
+\begin{equation*}
+ d = \frac{\sqrt{6}}{\pi} \cdot \sigma \textrm{ und } c = \mu - 0.5772 \cdot d
+\end{equation*}
+where $\mu$ and $\sigma$ are the population moments.
+
+<<>>=
+lines_fitgumbel <- function (x, ...) {
+ # x = sample
+ m <- mean(x)
+ s <- sd(x)
+ d <- sqrt(6)/pi * s
+ c <- m - 0.5772*d
+ curve(c - d*log(-log(1 - 1/x)), add=TRUE, ...)
+}
+@
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigChRS_4_1.pdf", height=2.8, width=4.6, pointsize=8)
+par(mar=c(3,3,1,3)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="i", las=0)
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(c(1,100), c(0,100), type="n", xlab="Return period (yrs)",
+     ylab="Maximum annual daily flow (mm/d)", log="x")
+ points_pp_floods(as.numeric(MAF), col="black")
+ lines_fitgumbel(as.numeric(MAF), col="black")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigChRS_4_1}
+\end{center}
+
+
+From which $Q_{100}$ can be read.
+
+
+
+
+% --------------------------------------------------------------------- %
+\section{Comparison of the different sites}
+
+How do the signatures of the different sites differ?
+
+I would propose that we go through the figures we have plotted for each signature, put them on a map and discuss them together.
+
+
+
+
+
+
+\begin{thebibliography}{}
+
+\bibitem[Blöschl et al., 2013]{Bloeschletal2013PUBbook}
+Blöschl, G., Sivapalan, M., Wagener, T., Viglione, A. and Savenije, H. (2013)
+\newblock {\em Runoff Prediction in Ungauged Basins: Synthesis Across Processes, Places and Scales}, University Press, Cambridge, 484 pages, ISBN:9781107028180. 
+
+\bibitem[Castellarin et al., 2007]{Castellarinetal2007AWR}
+Castellarin, A., G. Camorani, and A. Brath (2007), 
+\newblock Predicting annual and long-term flow-duration curves in ungauged basins, 
+\newblock {\em Advances in Water Resources}, \textbf{30}(4), 937--953, \doi{10.1016/j.advwatres.2006.08.006}.
+
+\bibitem[Eder et al., 2003]{Ederetal2003HP}
+Eder, G., M.~Sivapalan, and H.~Nachtnebel (2003), 
+\newblock Modelling water balances in an Alpine catchment through exploitation of emergent properties over changing time scales, 
+\newblock {\em Hydrological Processes}, \textbf{17}(11), 2125--2149, \doi{10.1002/hyp.1325}.
+
+\bibitem[Hannah et al., 2011]{Hannahetal2011HP}
+Hannah, D.~M., S.~Demuth, H.~A.~J. {van Lanen}, U.~Looser, C.~Prudhomme, G.~Rees, K.~Stahl, and L.~M. Tallaksen (2011), 
+\newblock Large-scale river flow archives: importance, current status and future needs, 
+\newblock {\em Hydrological Processes}, \textbf{25}(7), 1191--1200, \doi{10.1002/hyp.7794}.
+
+\bibitem[Jefferson et al., 2010]{Jeffersonetal2010ESPL}
+Jefferson, A., G.~Grant, S.~Lewis, and S.~Lancaster (2010), 
+\newblock Coevolution of hydrology and topography on a basalt landscape in the Oregon Cascade Range, USA, 
+\newblock {\em Earth Surface Processes and Landforms}, \textbf{35}(7), 803--816, \doi{10.1002/esp.1976}.
+
+\bibitem[Jothityangkoon et al., 2001]{Jothityangkoonetal2001}
+Jothityangkoon, C., M.~Sivapalan, and D.~Farmer (2001), 
+\newblock Process controls of water balance variability in a large semi-arid catchment: downward approach to hydrological model development, 
+\newblock {\em Journal of Hydrology}, \textbf{254}(1-4), 174--198.
+
+\bibitem[McMahon et al., 2011]{McMahonetal2011JHM}
+McMahon, T.~A., M.~C. Peel, G.~G.~S. Pegram, and I.~N. Smith (2011), 
+\newblock A Simple Methodology for Estimating Mean and Variability of Annual Runoff and Reservoir Yield under Present and Future Climates, 
+\newblock {\em Journal of Hydrometeorology}, \textbf{12}, 135--146, \doi{10.1175/2010JHM1288.1}.
+
+\bibitem[Merz and Bl{\"o}schl, 2008a]{MerzBloeschl2008aWRR}
+Merz, R., and G.~Bl{\"o}schl (2008a), 
+\newblock Flood frequency hydrology: 1. Temporal, spatial, and causal expansion of information, 
+\newblock {\em Water Resources Research}, \textbf{44}, W08432, \doi{10.1029/2007WR006744}.
+
+\bibitem[Merz and Bl{\"o}schl, 2008b]{MerzBloeschl2008bWRR}
+Merz, R., and G.~Bl{\"o}schl (2008b), 
+\newblock Flood frequency hydrology: 2. Combining data evidence, 
+\newblock {\em Water Resources Research}, \textbf{44}, W08433, \doi{10.1029/2007WR006745}.
+
+\bibitem[Parajka et al., 2013]{Parajkaetal2013HESSpub1}
+Parajka, J., A.~Viglione, M.~Rogger, J.~L. Salinas, M.~Sivapalan, and G.~Bl{\"o}schl (2013), 
+\newblock Comparative assessment of predictions in ungauged basins; Part 1: Runoff hydrograph studies, 
+\newblock {\em Hydrology and Earth System Sciences}, \textbf{17}, 1783--1795, \doi{10.5194/hess-17-1783-2013}.
+
+\bibitem[Sauquet et~al., 2008]{Sauquetetal2008HR}
+Sauquet, E., L.~Gottschalk, and I.~Krasovskaia (2008), 
+\newblock Estimating mean monthly runoff at ungauged locations: an application to France, 
+\newblock {\em Hydrology Research}, \textbf{39}(5-6), 403--423, \doi{10.2166/nh.2008.331}.
+
+\bibitem[Smakhtin, 2001]{Smakhtin2001JoH}
+Smakhtin, V. (2001), 
+\newblock Low flow hydrology: a review, 
+\newblock {\em Journal of Hydrology}, \textbf{240}(3-4), 147--186, \doi{10.1016/S0022-1694(00)00340-1}.
+
+\bibitem[Viglione et~al., 2013]{Viglioneetal2013HESSpub3}
+Viglione, A., J.~Parajka, M.~Rogger, J.~L. Salinas, G.~Laaha, M.~Sivapalan, and G.~Bl{\"o}schl (2013), 
+\newblock Comparative assessment of predictions in ungauged basins -- Part 3: Runoff signatures in Austria, 
+\newblock {\em Hydrology and Earth System Sciences}, \textbf{17}, 2263--2279, \doi{10.5194/hess-17-2263-2013}.
+
+\bibitem[Vogel and Fennessey, 1994]{VogelFennessey1994JWRPMa}
+Vogel, R.~M., and N.~M. Fennessey (1994), 
+\newblock Flow-duration Curves. I: New Interpretation and Confidence Intervals, 
+\newblock {\em Journal of Water Resources Planning and Management-ASCE}, \textbf{120}(4), 485--504.
+
+\bibitem[Vogel and Fennessey, 1995]{VogelFennessey1995JAWRAb}
+Vogel, R.~M., and N.~M. Fennessey (1995), 
+\newblock Flow Duration Curves II: A Review of Applications in Water Resources Planning, 
+\newblock {\em Journal of the American Water Resources Association}, \textbf{31}(6), 1029--1039, \doi{10.1111/j.1752-1688.1995.tb03419.x}.
+
+\end{thebibliography}
+
+%\bibliographystyle{agu04}
+%\bibliography{BiblioAlberto}
+
+
+<<echo=FALSE>>=
+options(prompt="> ", continue="+ ")
+@
+
+\end{document}
+
+

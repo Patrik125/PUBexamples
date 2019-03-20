@@ -1,0 +1,1001 @@
+\documentclass[a4paper, 10pt]{article}
+\usepackage{graphics}                 % Packages to allow inclusion of graphics
+\usepackage[utf8]{inputenc}   % To allow umlaut
+\usepackage[pdftex]{graphicx}
+\usepackage{fancyhdr}
+\usepackage[figuresright]{rotating}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\usepackage{doi}
+\usepackage{natbib}
+%\usepackage{/usr/local/lib/R/share/texmf/tex/latex/Sweave}   % old pc
+\usepackage{/usr/share/R/share/texmf/tex/latex/Sweave}  % new pc
+
+\usepackage{colortbl}      
+\newcommand{\comm}[1]{\textcolor{red}{#1}}    
+\newcommand{\readerhelp}[1]{\noindent\colorbox{yellow}{\textcolor{cyan}{(#1)}}}
+
+%\usepackage{unicode-math}  % for bold greek letters
+
+
+
+% Margini
+\setlength{\textwidth} {180mm}
+\setlength{\textheight}{255mm}      %Altezza testo 227 mm
+%\setlength{\topmargin} {0.1mm}
+
+\setlength{\evensidemargin}{-10mm} %Margini per l'opzione twoside
+\setlength{\oddsidemargin} {-10mm}
+\setlength{\topmargin}{-20mm}
+
+
+%\VignetteIndexEntry{Chapter 05: Prediction of annual runoff in ungauged basins - a EU example}
+
+% Header
+\pagestyle{fancy}
+
+% For figure numbering
+\numberwithin{figure}{section}
+
+\setkeys{Gin}{width=0.49\textwidth}
+
+\SweaveOpts{keep.source=TRUE, include=TRUE, width=5, height=3.3, echo=TRUE, results=verbatim}
+
+
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{.5\baselineskip}
+
+% units of measurements
+\newcommand{\udm}[1]{\ensuremath{{\rm #1}}}
+
+
+% colori delle scritte
+\definecolor{darkred}{rgb}{0.545,0,0} 
+\definecolor{midnightblue}{rgb}{0.098,0.098,0.439}
+\DefineVerbatimEnvironment{Sinput}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{midnightblue}}}
+\DefineVerbatimEnvironment{Soutput}{Verbatim}{xleftmargin=2em, fontsize=\tiny, formatcom={\color{darkred}}}
+\DefineVerbatimEnvironment{Scode}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{blue}}}
+\fvset{listparameters={\setlength{\topsep}{0pt}}}
+\renewenvironment{Schunk}{\vspace{\topsep}}{\vspace{\topsep}}
+
+
+
+
+
+
+
+
+
+\title{Chapter 5: Prediction of annual runoff in ungauged basins - a EU example}
+\author{Alberto Viglione}
+\date{}
+
+
+
+
+\begin{document}
+\maketitle
+
+<<echo=FALSE>>=
+options(width=180)
+options(prompt=" ", continue=" ")
+@
+
+
+
+
+\section{Introduction}
+
+This Tutorial has been developed by \href{http://www.rali.boku.ac.at/iasc/personen/laaha-gregor/}{Alberto Viglione} to illustrate the regional prediction of annual runoff in ungauged basins \citep[see,][]{McMahonetal2013PUBbookCh5}.
+The idea is to predict the mean annual runoff in Europe based on a dataset of 763 catchments in EU where we have some basic information on runoff, precipitation, temperature and solar radiation. 
+
+
+First of all load the library:
+<<>>=
+library(PUBexamples)
+@
+
+
+Then the data:
+<<eval=FALSE>>=
+help(data4chapter5and6)
+@
+<<>>=
+data(data4chapter5and6)
+
+head(CatchmentsEU, 15)
+
+head(meanQmon, 15)   # mean monthly discharge (m3/s)
+head(meanPmon, 15)   # mean monthly catchment precipitation (mm/d)
+head(meanTmon, 15)   # mean monthly catchment temperature (deg C)
+head(meanSImon, 15)  # mean monthly catchment SI ratio
+@
+
+
+
+Since the objective of the exercise is to estimate the mean annual runoff, let's calculate it from the monthly values
+<<>>=
+MAQ <- apply(meanQmon, 1, mean)
+ summary(MAQ)
+ summary(log10(MAQ))
+@
+
+
+Plot the mean annual discharge on a map:
+<<>>=
+library(rworldmap)
+newMap <- getMap(resolution="coarse")  # you can use resolution="low", which is better
+@
+<<echo=FALSE, eval=TRUE>>=
+#png(filename="FigCh5_0_1.png", units="in", res=144, height=6, width=7, pointsize=10)
+pdf(file="FigCh5_0_1.pdf", height=6, width=7, pointsize=10)
+par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+# for colors
+minimo <- min(round(log10(MAQ)*10))
+massimo <- max(round(log10(MAQ)*10))
+colori <- rainbow(massimo - minimo + 1, start=0, end=.65, alpha=1)
+# high values of discharge are blue, low values are red
+plot(newMap, xlim=range(CatchmentsEU$lon), ylim=range(CatchmentsEU$lat))
+ points(CatchmentsEU$lon, CatchmentsEU$lat, pch=1,
+        cex=0.3*log10(CatchmentsEU$area), 
+        col=colori[round(log10(MAQ)*10) - minimo + 1])
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigCh5_0_1}
+\end{center}
+
+
+
+% --------------------------------------------------------------------------------------------- %
+
+\section{Catchment area as explanatory variable}
+
+Of course, the mean annual discharge (in m$^3$/s) has to do with area:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_1_2.pdf", height=3.2, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+A <- CatchmentsEU$area
+plot(A, MAQ, xlab="area (km2)", ylab="MAQ (m3/s)", 
+     log="xy", xlim=c(10, 1e6), ylim=c(1e-2, 1e4),
+     cex=0.3*log10(A), 
+     col=colori[round(log10(MAQ)*10) - minimo + 1])
+ grid()
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh5_1_2}
+\end{center}
+
+
+With the only exception of the southern spanish catchment.
+Therefore a natural way of estimating the mean annual discharge is to relate it to area through a log-linear regression:
+<<>>=
+regr01 <- lm(log(MAQ) ~ log(A))
+ summary(regr01)
+exp(regr01$coefficients[1])
+# MAQ ~ 0.033*A^0.89
+@
+<<eval=FALSE>>=
+# add regression to the previous plot
+curve(0.033*x^0.89, add=TRUE)
+@
+which has a R$^2$ greater than 0.8... Our work is done!!!
+
+But wait, what is the error of prediction at single locations, e.g., measured as Absolute Normalise Error (ANE):
+<<>>=
+regMAQ01 <- 0.033*A^0.89
+ANE01 <- abs(regMAQ01 - MAQ)/MAQ
+@
+<<>>=
+boxplot20 <- function(m, ...){
+ # m has to be a data.frame or list
+ bp <- boxplot(m, plot=FALSE)
+ bp$stats <- sapply(m, function(x) 
+                   quantile(x, c(0.2,0.4, 0.5, 0.6, 0.8), na.rm=TRUE)) 
+ bxp(bp, outline=FALSE, ...)
+}
+@
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_1_3.pdf", height=3.2, width=3.8, pointsize=8)
+par(mar=c(3,3,2,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:2, nrow=1), widths=c(5,1))
+plot(A, ANE01, xlab="area (km2)", ylab="ANE", 
+     log="x", xlim=c(10, 1e6), ylim=c(3, 0),
+     cex=0.3*log10(A), 
+     col=colori[round(log10(MAQ)*10) - minimo + 1])
+ grid()
+ axis(4)
+par(mar=c(3,0,2,0)+0.03)
+boxplot20(as.data.frame(ANE01), ylim=c(3, 0), axes=FALSE)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh5_1_3}
+\end{center}
+
+
+The boxplot has been added to the right to be compared with the PUB book assessment Figure 5.27 at page 99.
+An error of 50\% is common (it's the median).
+
+%Actually we can do better:
+%<<>>=
+%area_class <- cut(A, breaks=c(0,50,100,500,1000,5000,Inf))
+%tabella <- data.frame(CatchmentsEU, MAQ=MAQ, ANE=ANE01)
+%@
+%<<>>=
+%add_points <- function(performance="ANE", variable="area", classes, table) {
+% # to add points in a nice way
+% for (j in 1:length(levels(classes))) {
+%  dummy <- table[as.numeric(classes) == j,]
+%  perf <- dummy[, performance]
+%  stratif <- dummy[, variable]
+%  if (length(stratif) > 0) {
+%   if (length(stratif) == 1) {
+%    points(j, perf, pch=1, 
+%           col=colori[round(log10(dummy$MAQ)*10) - minimo + 1],
+%           cex=0.3*log10(dummy$area))
+%   } else {
+%      points(j + 0.1*(stratif - mean(stratif))/sd(stratif),
+%             perf, pch=1,
+%             col=colori[round(log10(dummy$MAQ)*10) - minimo + 1],
+%             cex=0.3*log10(dummy$area))
+%   }
+%  }
+% }
+%}
+%@
+%
+%<<echo=FALSE, eval=TRUE>>=
+%pdf(file="FigCh5_1_4.pdf", height=3.2, width=6.8, pointsize=8)
+%par(mar=c(3,3,2,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+%@
+%<<fig=FALSE, eval=TRUE>>=
+%layout(matrix(1:2, nrow=1), widths=c(1,1))
+%plotPUBfiguresLevel2(chapter=5, method="Global_regr", performance="ANE",
+%                     characteristic="Area", ylim=c(3,0))
+% add_points(performance="ANE", variable="area", classes=area_class, table=tabella)
+%plotPUBfiguresLevel2(chapter=5, method="Global_regr", performance="ANE",
+%                     characteristic="Area", ylim=c(3,0))
+% boxplot20(split(ANE01, area_class), add=TRUE, axes=FALSE)
+%@
+%<<echo=FALSE, eval=TRUE, results=hide>>=
+%dev.off()
+%@
+%
+%\begin{center}
+% \includegraphics[width=.7\textwidth]{FigCh5_1_4}
+%\end{center}
+%
+%Notice that the method used here is a global regression and that, contrary to our phylosophy, no cross-validation has been performed.
+%In your opinion, why not?
+
+
+But wait, does area explain everything? What if I consider runoff in mm/yr instead of m$^3$/s?
+<<>>=
+MAR <- 365.25*24*3.6*MAQ/A  # from m3/s to mm/yr
+
+regr02 <- lm(log(MAR) ~ log(A))
+ summary(regr02)
+exp(regr02$coefficients[1])
+# MAR ~ 1055*A^-0.11
+@
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_1_5.pdf", height=3.2, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(A, MAR, xlab="area (km2)", ylab="MAR (mm/yr)",
+     log="x",
+     cex=0.3*log10(A),
+     col=colori[round(log10(MAQ)*10) - minimo + 1])
+ grid()
+curve(1055*x^-0.11, add=TRUE)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh5_1_5}
+\end{center}
+
+
+Now R$^2$ is very low, we may do better than that.
+
+
+% --------------------------------------------------------------------------------------------- %
+
+\section{Mean annual precipitation as explanatory variable}
+
+Get the mean annual precipitation from the monthly values:
+<<>>=
+MAP <- 365.25*apply(meanPmon, 1, mean, na.rm=TRUE)  # mm/yr
+ summary(MAP)
+@
+
+An additive regression between MAP and MAR may make sense: 
+%  where the intercept is an estimate of the spatial-mean of the temporal-mean annual evaporation ... NOT REALLY
+<<>>=
+regr03 <- lm(MAR ~ MAP)
+ summary(regr03)
+# MAR ~ 1.2*MAP - 516  (mm/yr)
+@
+
+Which has a decent R$^2$ of more than 0.7.
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_2_1.pdf", height=3.2, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(MAP, MAR, xlab="MAP (mm/yr)", ylab="MAR (mm/yr)",
+     cex=0.3*log10(A),
+     col=c("blue","red")[(MAR > MAP) + 1])
+ grid()
+curve(1.2*x - 516, add=TRUE)
+abline(0, 1, lty=2)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh5_2_1}
+\end{center}
+
+
+Notice that the dashed line is a limit above which no point should lie, because that would mean that there is more runoff that rainfall!!!
+Ops, why are there catchments like that? Where are these catchments?
+
+%<<echo=FALSE, eval=TRUE>>=
+%png(filename="FigCh5_2_2.png", units="in", res=144, height=6, width=7, pointsize=10)
+%par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+%@
+<<fig=FALSE, eval=FALSE>>=
+plot(newMap, xlim=range(CatchmentsEU$lon), ylim=range(CatchmentsEU$lat))
+ points(CatchmentsEU$lon, CatchmentsEU$lat, pch=1,
+        cex=0.3*log10(CatchmentsEU$area),
+        col=c("blue","red")[(MAR > MAP) + 1])
+@
+%<<echo=FALSE, eval=F, results=hide>>=
+%dev.off()
+%@
+%
+%\begin{center}
+% \includegraphics[width=.5\textwidth]{FigCh5_2_2}
+%\end{center}
+
+
+Many are in the mountains and many at high latitudes... Maybe snow is one explanation: it is difficult to measure precipitation correctly where it snows.
+Moreover, notice that precipitation data where interpolated spatially from maps produced from \href{http://eca.knmi.nl/}{ECA data} whose density is not homogeneus in space.
+
+Anyway, let's think statistically, we do not care now of non plausible MAP-MAR relationships.
+Let's try some other regressions, e.g.:
+<<>>=
+regr04 <- lm(MAR ~ MAP + A)
+ summary(regr04)
+
+regr05 <- lm(log(MAR) ~ log(MAP))
+ summary(regr05)
+
+regr06 <- lm(log(MAR) ~ log(MAP) + log(A))
+ summary(regr06)
+@
+
+
+Once we reason in terms of mm/yr, catchment area does not seem to be useful anymore (at least considering linear relationships).
+
+What is the error of prediction at single locations?
+<<>>=
+regMAR03 <- 1.2*MAP - 516
+ANE03 <- abs(regMAR03 - MAR)/MAR
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_2_3.pdf", height=3.4, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(ANE01, ANE03, xlab="ANE for (MAQ = 0.033*A^0.89)", ylab="ANE for (MAR = 1.2*MAP - 516)",
+     log="xy", xlim=c(1e-4,1e3), ylim=c(1e-4,1e3),
+     cex=0.3*log10(A),
+     col=c("#306EFF", "#348017")[(ANE03 > ANE01) + 1])
+ abline(0, 1, lty=3)
+ grid()
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh5_2_3}
+\end{center}
+
+
+It seems that most of the cases (blue) the relationship with MAP beats the one with A.
+PS. for deciding colors I normally use \href{http://www.computerhope.com/htmcolor.htm}{this website}.
+
+<<>>=
+mean(ANE01)
+mean(ANE03)
+sum((ANE01 > ANE03))/length(ANE03)
+@
+
+More than 70\% of the times the relationship with MAP beats the one with A.
+
+
+% --------------------------------------------------------------------------------------------- %
+
+\section{Mean annual temperature as explanatory variable}
+
+We have information also on temperature which is related to evaporation and therefore phisically meaningful as a covariate for explaning runoff.
+Moreover, if snow is responsible of some of the data errors, temperature may capture this as well.
+<<>>=
+MAT <- apply(meanTmon, 1, mean, na.rm=TRUE)  # degC
+ summary(MAT)
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_3_1.pdf", height=6.4, width=6.8, pointsize=12)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(data.frame(MAR, MAP, MAT), 
+     col=c("blue","red")[(MAR > MAP) + 1], 
+     cex=0.3*log10(A))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.7\textwidth]{FigCh5_3_1}
+\end{center}
+
+
+Mmmm... also places with high temperature have the problem MAR > MAP.
+
+Anyway, let's try the following:
+<<>>=
+regr07 <- lm(MAR ~ MAP + MAT)
+ summary(regr07)
+# MAR ~ 1.1*MAP - 26.3*MAT - 250
+@
+which is slightly better that the regression with MAP alone, in terms of R$^2$.
+
+What about the error of prediction at single locations?
+<<>>=
+regMAR07 <- 1.1*MAP - 26.3*MAT - 250
+ANE07 <- abs(regMAR07 - MAR)/MAR
+@
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_3_2.pdf", height=3.4, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(ANE03, ANE07, xlab="ANE for (MAR = 1.2*MAP - 516)", ylab="ANE for (MAR = 1.1*MAP - 26.3*MAT - 250)",
+     log="xy", xlim=c(1e-4,1e3), ylim=c(1e-4,1e3),
+     cex=0.3*log10(A),
+     col=c("#306EFF", "#348017")[(ANE07 > ANE03) + 1])
+ abline(0, 1, lty=3)
+ grid()
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh5_3_2}
+\end{center}
+
+
+This time it is harder to say which relationship is best.
+<<>>=
+mean(ANE03)
+mean(ANE07)
+sum((ANE03 > ANE07))/length(ANE07)
+@
+
+Almost 60\% of the times the relationship with MAP and MAT beats the one with MAP only.
+
+
+% --------------------------------------------------------------------------------------------- %
+
+\section{Budyko}
+
+Hydrologists tell us that reasoning in terms of aridity index (potential evaporation over precipitation) and the Budyko diagram helps.
+Let's try.
+
+In order to calculate the aridity index I need the catchment long term potential evaporation.
+The data include the SI ratio data for the catchments for every month. 
+As in \citet{Parajkaetal2003}, the Blaney-Criddle method modified by \citet{Schroedter1985} can be used to calculate the potential evapotranspiration, i.e.,
+$\textrm{EP} = -1.55 + 0.96 \cdot (8.128 + 0.457 \cdot \textrm{T}) \cdot \textrm{SI}$ with the constrain that $\textrm{EP} \ge 0$.
+<<>>= 
+meanEPmon <- -1.55 + 0.96*(8.128 + 0.457*meanTmon)*meanSImon
+ meanEPmon[meanEPmon < 0] <- 0                       # mean monthly potential evapotranspiration (mm/d)
+PET <- 365.25*apply(meanEPmon, 1, mean, na.rm=TRUE)  # mm/yr
+ summary(PET)
+@
+
+Let's calculate the aridity index and other interesting nondimensional coefficients:
+<<>>=
+PETovP <- PET/MAP   # aridity index
+ summary(PETovP)
+MARovMAP <- MAR/MAP  # runoff ratio
+ summary(MARovMAP)
+ETovP <- (MAP - MAR)/MAP  # actual evaporation over precipitation
+ summary(ETovP)
+@
+and index some non phisically plausible sites:
+<<>>=
+MARgrMAP <- (MAR > MAP)  # runoff is greater than rainfall
+ETgrPET <- ((MAP - MAR) > PET)  # actual evaporation greater than the potential one
+@
+
+And plot some interesting graph:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_4_1.pdf", height=3.2, width=6.8, pointsize=12)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:2, ncol=2, byrow=TRUE))
+# Figure 4 in Peel et al. (2010)
+plot(c(.2,2), c(.03,3), type="n", log="xy", 
+     xlab="Aridity (PETovP)", ylab="Runoff Ratio (MARovMAP)")
+ grid(equilogs=FALSE)
+points(PETovP[!(MARgrMAP|ETgrPET)], MARovMAP[!(MARgrMAP|ETgrPET)], 
+       pch=21, bg="#6CBB3C", cex=0.3*log10(A[!(MARgrMAP|ETgrPET)]))
+ abline(h=1, lty=2)
+ curve(1 - x, add=TRUE, n=10001, lty=2)
+points(PETovP[MARgrMAP], MARovMAP[MARgrMAP], 
+       pch=21, bg="#2B65EC", 
+       cex=0.3*log10(A[MARgrMAP]))
+points(PETovP[ETgrPET], MARovMAP[ETgrPET], 
+       pch=21, bg="#E55451", 
+       cex=0.3*log10(A[ETgrPET]))
+
+# Budyko
+plot(PETovP[!(MARgrMAP|ETgrPET)], ETovP[!(MARgrMAP|ETgrPET)], 
+     xlim=c(0,2), ylim=c(-1,1), xlab="PET/P", ylab="ET/P",
+     pch=21, bg="#6CBB3C", cex=0.3*log10(A[!(MARgrMAP|ETgrPET)]))
+ segments(x0=c(0,1), x1=c(1,4), y0=c(0,1), y1=c(1,1), lty=2)
+ segments(x0=0, x1=4, y0=0, lty=2)
+points(PETovP[MARgrMAP], ETovP[MARgrMAP], 
+       pch=21, bg="#2B65EC", 
+       cex=0.3*log10(A[MARgrMAP]))
+points(PETovP[ETgrPET], ETovP[ETgrPET], 
+       pch=21, bg="#E55451", 
+       cex=0.3*log10(A[ETgrPET]))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.7\textwidth]{FigCh5_4_1}
+\end{center}
+
+
+
+Which on a map look like this:
+%<<echo=FALSE, eval=TRUE>>=
+%png(filename="FigCh5_4_2.png", units="in", res=144, height=6, width=7, pointsize=10)
+%par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+%@
+<<fig=FALSE, eval=FALSE>>=
+plot(newMap, xlim=range(CatchmentsEU$lon), ylim=range(CatchmentsEU$lat))
+ points(CatchmentsEU$lon[!(MARgrMAP|ETgrPET)], CatchmentsEU$lat[!(MARgrMAP|ETgrPET)], 
+        pch=21, bg="#6CBB3C", cex=0.3*log10(A[!(MARgrMAP|ETgrPET)]))
+ points(CatchmentsEU$lon[MARgrMAP], CatchmentsEU$lat[MARgrMAP],
+       pch=21, bg="#2B65EC", cex=0.3*log10(A[MARgrMAP]))
+ points(CatchmentsEU$lon[ETgrPET], CatchmentsEU$lat[ETgrPET],
+       pch=21, bg="#E55451", cex=0.3*log10(A[ETgrPET]))
+@
+%<<echo=FALSE, eval=TRUE, results=hide>>=
+%dev.off()
+%@
+%
+%\begin{center}
+% \includegraphics[width=.5\textwidth]{FigCh5_4_2}
+%\end{center}
+
+
+Interpretations?
+
+
+\subsection{Non parametric Budyko}
+
+Anyway, how well would the runoff be estimated by the original non parametric Budyko formula?
+$$F(\varphi) = \left\{\varphi[1 - \exp(-\varphi)] \tanh(\varphi^{-1})\right\}^{0.5}$$
+where $\varphi$ is the aridity index (aka \verb+PETovP+).
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_4_3.pdf", height=3.4, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+# I use colors that reflect the aridity
+colori <- rev(rainbow(20, start=0, end=.65, alpha=1))
+plot(PETovP, ETovP,
+     xlim=c(0,2), ylim=c(0,1), xlab="PET/P", ylab="ET/P",
+     pch=21, bg=colori[round(10*PETovP)], cex=0.3*log10(A))
+ segments(x0=c(0,1), x1=c(1,4), y0=c(0,1), y1=c(1,1), lty=2)
+ curve(sqrt(x*(1 - exp(-x))*tanh(1/x)), add=TRUE, lwd=2, col="#FFA500")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh5_4_3}
+\end{center}
+
+
+<<>>=
+bdkETovP01 <- sqrt(PETovP*(1 - exp(-PETovP))*tanh(1/PETovP))  # estimated EP/P
+bdkMAR01 <- MAP - bdkETovP01*MAP
+ANEbdk01 <- abs(bdkMAR01 - MAR)/MAR
+@
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_4_4.pdf", height=3.4, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(ANE07, ANEbdk01, xlab="ANE for (MAR = 1.1*MAP - 26.3*MAT - 250)", ylab="ANE for non-parametric Budyko",
+     log="xy", xlim=c(1e-4,1e3), ylim=c(1e-4,1e3),
+     cex=0.3*log10(A),
+     col=c("#306EFF", "#348017")[(ANEbdk01 > ANE07) + 1])
+ abline(0, 1, lty=3)
+ grid()
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh5_4_4}
+\end{center}
+
+
+This time it is harder to say which relationship is best.
+<<>>=
+mean(ANE07)
+mean(ANEbdk01)
+sum((ANE07 > ANEbdk01))/length(ANE07)
+@
+
+About 40\% of the times the non-parametric Budyko outperforms the parametric (fitted) regression with MAP and MAT. Not bad.
+Where does it do this?
+<<eval=FALSE>>=
+plot(newMap, xlim=range(CatchmentsEU$lon), ylim=range(CatchmentsEU$lat))
+ points(CatchmentsEU$lon, CatchmentsEU$lat, pch=1,
+        cex=0.3*log10(CatchmentsEU$area),
+        col=c("#306EFF", "#348017")[(ANEbdk01 > ANE07) + 1])
+@
+
+Motivations?
+
+
+
+
+
+\subsection{Parametric Budyko}
+
+How well would the runoff be estimated by the parametric generalised Turk-Pike formula?
+$$F(\varphi) = \left[1 + \varphi^{-\nu}\right]^{-1/\nu}$$
+
+Find $\nu$ minimising the sum of square-residuals calculated as:
+<<>>=
+sumAbsRes <- function (nu, aridity, epOVERp) {
+ estim <- (1 + aridity^(-nu))^(-1/nu)
+ output <- sum(abs(estim - epOVERp))
+ return(output)
+}
+@
+<<>>=
+optimize(f=sumAbsRes, interval=c(.1, 10), aridity=PETovP, epOVERp=ETovP)
+# nu = 1.25
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_5_1.pdf", height=3.4, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(PETovP, ETovP,
+     xlim=c(0,2), ylim=c(0,1), xlab="PET/P", ylab="ET/P",
+     pch=21, bg=colori[round(10*PETovP)], cex=0.3*log10(A))
+ segments(x0=c(0,1), x1=c(1,4), y0=c(0,1), y1=c(1,1), lty=2)
+ curve(sqrt(x*(1 - exp(-x))*tanh(1/x)), add=TRUE, lwd=1, col="#FFA500")
+ curve((1 + x^(-1.25))^(-1/1.25), add=TRUE, lwd=2, col="#7917A3")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh5_5_1}
+\end{center}
+
+
+
+<<>>=
+bdkETovP02 <- (1 + PETovP^(-1.25))^(-1/1.25)  # estimated EP/P
+bdkMAR02 <- MAP - bdkETovP02*MAP
+ANEbdk02 <- abs(bdkMAR02 - MAR)/MAR
+@
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_5_4.pdf", height=3.4, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot(ANE07, ANEbdk02, xlab="ANE for (MAR = 1.1*MAP - 26.3*MAT - 250)", ylab="ANE for parametric Budyko",
+     log="xy", xlim=c(1e-4,1e3), ylim=c(1e-4,1e3),
+     cex=0.3*log10(A),
+     col=c("#306EFF", "#348017")[(ANEbdk02 > ANE07) + 1])
+ abline(0, 1, lty=3)
+ grid()
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh5_5_4}
+\end{center}
+
+
+This time it is harder to say which relationship is best.
+<<>>=
+mean(ANE07)
+mean(ANEbdk02)
+sum((ANE07 > ANEbdk02))/length(ANE07)
+@
+
+Almost 50\% of the times the parametric Budyko outperforms the parametric (fitted) regression with MAP and MAT. Still the regression is better.
+Notice however that the regression has 3 free parameters while the Budyko has one.
+In your opinion, what should we do next?
+
+
+
+
+% -------------------------------------------------------------------------- %
+
+\section{Compare to the PUB book assessment}
+
+
+To reason about results, I identify catchment in space througn their aridity:
+
+<<echo=FALSE, eval=TRUE>>=
+#png(filename="FigCh5_6_0.png", units="in", res=144, height=6, width=7, pointsize=10)
+pdf(file="FigCh5_6_0.pdf", height=6, width=7, pointsize=10)
+par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+library(Hmisc)
+# colors related to aridity index
+#colori <- rev(rainbow(20, start=0, end=.65, alpha=1))
+plot(newMap, xlim=range(CatchmentsEU$lon), ylim=range(CatchmentsEU$lat))
+ points(CatchmentsEU$lon, CatchmentsEU$lat, pch=21,
+        cex=0.3*log10(CatchmentsEU$area),
+        bg=colori[round(10*PETovP)])
+
+subplot(   # needs package 'Hmisc'
+ {plot(PETovP, ETovP,
+      xlim=c(0,2), ylim=c(-1,1), xlab="PET/P", ylab="ET/P",
+      pch=21, bg=colori[round(10*PETovP)], cex=0.3*log10(A))
+ segments(x0=c(0,1), x1=c(1,4), y0=c(0,1), y1=c(1,1), lty=2)
+ segments(x0=0, x1=4, y0=0, lty=2)},
+ c(33,53), c(52,62)
+)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigCh5_6_0}
+\end{center}
+
+
+
+In the Level 2 Assessment of the PUB book \citep{Bloeschletal2013PUBbook} in Chapter 5 the normalised error and the absolute normalised error in the estimation of annual runoff is calculated.
+<<>>=
+NE07 <- (regMAR07 - MAR)/MAR
+ANE07 <- abs(NE07)
+
+NEbdk01 <- (bdkMAR01 - MAR)/MAR
+ANEbdk01 <- abs(NEbdk01)
+
+tabella <- data.frame(CatchmentsEU[,c("code", "area", "elev")], temp=MAT, aridity=PETovP, 
+                      NEregr=round(NE07, 3), ANEregr=round(ANE07, 3),
+                      NEbudyko=round(NEbdk01, 3), ANEbudyko=round(ANEbdk01, 3))
+ head(tabella, 15)
+@
+
+<<>>=
+aridity_class <- cut(tabella$aridity, breaks=c(-Inf,0.4,0.6,0.8,1,2,Inf))
+temp_class <- cut(tabella$temp,  breaks=c(-Inf,3,6,8,10,12,Inf))
+elev_class <- cut(tabella$elev, breaks=c(0,300,600,900,1200,1500,Inf))
+area_class <- cut(tabella$area, breaks=c(0,50,100,500,1000,5000,Inf))
+@
+
+
+<<>>=
+add_points <- function(performance="ANE", variable="area", classes, table) {
+ # to add points in a nice way
+ for (j in 1:length(levels(classes))) {
+  dummy <- table[as.numeric(classes) == j,]
+  perf <- dummy[, performance]
+  stratif <- dummy[, variable]
+  if (variable == "area") stratif <- log(stratif)
+  if (length(stratif) > 0) {
+   if (length(stratif) == 1) {
+    points(j, perf, pch=21,
+           bg=colori[round(10*dummy$aridity)],
+           cex=.5*log10(dummy$area))
+   } else {
+      points(j + 0.15*(stratif - mean(stratif))/sd(stratif),
+             perf, pch=21,
+             bg=colori[round(10*dummy$aridity)],
+             cex=.5*log10(dummy$area))
+   }
+  }
+ }
+}
+@
+
+
+Fig 5.27 at page 98 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_6_1.pdf", height=10, width=10.2, pointsize=12)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:9, nrow=3, byrow=TRUE))
+plotPUBfiguresLevel2(chapter=5, method="Global_regr", performance="ANE",
+                     characteristic="Aridity", ylim=c(3,0),
+                     main="Global_regr")
+ add_points(performance="ANEregr", variable="aridity", classes=aridity_class, table=tabella)
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="ANE",
+                     characteristic="Aridity", ylim=c(3,0),
+                     main="Regional_regr")
+plotPUBfiguresLevel2(chapter=5, method="Budyko", performance="ANE",
+                     characteristic="Aridity", ylim=c(3,0),
+                     main="Budyko")
+ add_points(performance="ANEbudyko", variable="aridity", classes=aridity_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=5, method="Global_regr", performance="ANE",
+                     characteristic="MAT", ylim=c(3,0))
+ add_points(performance="ANEregr", variable="temp", classes=temp_class, table=tabella)
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="ANE",
+                     characteristic="MAT", ylim=c(3,0))
+plotPUBfiguresLevel2(chapter=5, method="Budyko", performance="ANE",
+                     characteristic="MAT", ylim=c(3,0))
+ add_points(performance="ANEbudyko", variable="temp", classes=temp_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=5, method="Global_regr", performance="ANE",
+                     characteristic="Area", ylim=c(3,0))
+ add_points(performance="ANEregr", variable="area", classes=area_class, table=tabella)
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="ANE",
+                     characteristic="Area", ylim=c(3,0))
+plotPUBfiguresLevel2(chapter=5, method="Budyko", performance="ANE",
+                     characteristic="Area", ylim=c(3,0))
+ add_points(performance="ANEbudyko", variable="area", classes=area_class, table=tabella)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh5_6_1}
+\end{center}
+
+
+Fig 5.28 at page 99 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh5_6_2.pdf", height=10, width=10.2, pointsize=12)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:9, nrow=3, byrow=TRUE))
+plotPUBfiguresLevel2(chapter=5, method="Global_regr", performance="NE",
+                     characteristic="Aridity", ylim=c(-2,2),
+                     main="Global_regr"); abline(h=0, lty=3)
+ add_points(performance="NEregr", variable="aridity", classes=aridity_class, table=tabella)
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="NE",
+                     characteristic="Aridity", ylim=c(-2,2),
+                     main="Regional_regr"); abline(h=0, lty=3)
+plotPUBfiguresLevel2(chapter=5, method="Budyko", performance="NE",
+                     characteristic="Aridity", ylim=c(-2,2),
+                     main="Budyko"); abline(h=0, lty=3)
+ add_points(performance="NEbudyko", variable="aridity", classes=aridity_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=5, method="Global_regr", performance="NE",
+                     characteristic="MAT", ylim=c(-2,2)); abline(h=0, lty=3)
+ add_points(performance="NEregr", variable="temp", classes=temp_class, table=tabella)
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="NE",
+                     characteristic="MAT", ylim=c(-2,2)); abline(h=0, lty=3)
+plotPUBfiguresLevel2(chapter=5, method="Budyko", performance="NE",
+                     characteristic="MAT", ylim=c(-2,2)); abline(h=0, lty=3)
+ add_points(performance="NEbudyko", variable="temp", classes=temp_class, table=tabella)
+
+plotPUBfiguresLevel2(chapter=5, method="Global_regr", performance="NE",
+                     characteristic="Area", ylim=c(-2,2)); abline(h=0, lty=3)
+ add_points(performance="NEregr", variable="area", classes=area_class, table=tabella)
+plotPUBfiguresLevel2(chapter=5, method="Regional_regr", performance="NE",
+                     characteristic="Area", ylim=c(-2,2)); abline(h=0, lty=3)
+plotPUBfiguresLevel2(chapter=5, method="Budyko", performance="NE",
+                     characteristic="Area", ylim=c(-2,2)); abline(h=0, lty=3)
+ add_points(performance="NEbudyko", variable="area", classes=area_class, table=tabella)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh5_6_2}
+\end{center}
+
+
+Notice that, contrary to our phylosophy, no cross-validation has been performed.
+In your opinion, why not?
+
+
+
+
+\begin{thebibliography}{}
+
+\bibitem[Blöschl et al., 2013]{Bloeschletal2013PUBbook}
+Blöschl, G., Sivapalan, M., Wagener, T., Viglione, A. and Savenije, H. (2013)
+\newblock {\em Runoff Prediction in Ungauged Basins: Synthesis Across Processes, Places and Scales}, University Press, Cambridge, 484 pages, ISBN:9781107028180. 
+
+\bibitem[McMahon et al., 2013]{McMahonetal2013PUBbookCh5}
+McMahon, T.A., G. Laaha, J. Parajka, M.C. Peel, H.H.G. Savenije, M. Sivapalan, J. Szolgay, S.E. Thompson, A. Viglione, R.A. Woods and D. Yang (2013)
+\newblock Prediction of annual runoff in ungauged basins.
+\newblock In {\em Runoff Prediction in Ungauged Basins: Synthesis Across Processes, Places and Scales}, University Press, Cambridge, 70-101, ISBN:9781107028180.
+
+\bibitem[Parajka et al., 2003]{Parajkaetal2003}
+Parajka, J., Merz, R., and Blöschl, G. (2003)
+\newblock Estimation of daily potential evapotranspiration for regional water balance modeling in Austria.
+\newblock In {\em Transport of Water, Chemicals and Energy in the Soil - Crop Canopy - Atmosphere System}, 11th International Poster Day and Institute of Hydrology Open Day, pages 299-306.
+
+\bibitem[Schroedter, 1985]{Schroedter1985}
+Schroedter, H. (1985)
+\newblock {\em Verdunstung - Anwendungsorientierte Messverfahren und Bestimmungsmethoden}, Springer, 186 pages, ISBN:3540153551, 9783540153559.
+
+
+\end{thebibliography}
+
+
+<<echo=FALSE>>=
+options(prompt="> ", continue="+ ")
+@
+
+\end{document}
+

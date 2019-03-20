@@ -1,0 +1,932 @@
+\documentclass[a4paper, 10pt]{article}
+\usepackage{graphics}                 % Packages to allow inclusion of graphics
+\usepackage[utf8]{inputenc}   % To allow umlaut
+\usepackage[pdftex]{graphicx}
+\usepackage{fancyhdr}
+\usepackage[figuresright]{rotating}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\usepackage{doi}
+\usepackage{natbib}
+%\usepackage{/usr/local/lib/R/share/texmf/tex/latex/Sweave}   % old pc
+\usepackage{/usr/share/R/share/texmf/tex/latex/Sweave}  % new pc
+
+\usepackage{colortbl}      
+\newcommand{\comm}[1]{\textcolor{red}{#1}}    
+\newcommand{\readerhelp}[1]{\noindent\colorbox{yellow}{\textcolor{cyan}{(#1)}}}
+
+%\usepackage{unicode-math}  % for bold greek letters
+
+
+
+% Margini
+\setlength{\textwidth} {180mm}
+\setlength{\textheight}{255mm}      %Altezza testo 227 mm
+%\setlength{\topmargin} {0.1mm}
+
+\setlength{\evensidemargin}{-10mm} %Margini per l'opzione twoside
+\setlength{\oddsidemargin} {-10mm}
+\setlength{\topmargin}{-20mm}
+
+
+%\VignetteIndexEntry{Chapter 10: Prediction of runoff hydrographs in ungauged basins - an Austrian example}
+
+% Header
+\pagestyle{fancy}
+
+% For figure numbering
+\numberwithin{figure}{section}
+
+\setkeys{Gin}{width=0.49\textwidth}
+
+\SweaveOpts{keep.source=TRUE, include=TRUE, width=5, height=3.3, echo=TRUE, results=verbatim}
+
+
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{.5\baselineskip}
+
+% units of measurements
+\newcommand{\udm}[1]{\ensuremath{{\rm #1}}}
+
+
+% colori delle scritte
+\definecolor{darkred}{rgb}{0.545,0,0} 
+\definecolor{midnightblue}{rgb}{0.098,0.098,0.439}
+\DefineVerbatimEnvironment{Sinput}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{midnightblue}}}
+\DefineVerbatimEnvironment{Soutput}{Verbatim}{xleftmargin=2em, fontsize=\tiny, formatcom={\color{darkred}}}
+\DefineVerbatimEnvironment{Scode}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{blue}}}
+\fvset{listparameters={\setlength{\topsep}{0pt}}}
+\renewenvironment{Schunk}{\vspace{\topsep}}{\vspace{\topsep}}
+
+
+
+
+
+
+
+
+
+\title{Chapter 10: Prediction of runoff hydrographs in ungauged basins - an Austrian example}
+\author{Juraj Parajka}
+\date{}
+
+
+
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+This Tutorial has been developed by \href{https://www.researchgate.net/profile/Juraj_Parajka}{Juraj Parajka} to illustrate two regionalisation methods (spatial proximity and similarity) for predicting  daily runoff  hydrographs \citep[see e.g.,][]{Bloeschletal2013PUBbook}.
+A detailed literature review of regionalisation methods is available in \citet{Parajkaetal2013PUBbookCh10}.
+
+
+
+
+
+
+<<echo=FALSE>>=
+options(width=180)
+options(prompt=" ", continue=" ")
+@
+
+
+First of all load the library:
+<<>>=
+library(PUBexamples)
+@
+
+
+% files <- list.files(pattern=".inp")
+% nomi <- sub(".inp", "", sub("Lumpi_", "", files))
+% ModelInput <- vector("list", length(nomi))
+%  names(ModelInput) <- nomi
+% for (i in 1:length(ModelInput)) {
+%  tabella <- read.table(files[i])
+%  tabella <- tabella[tabella[,3] > 1998,]
+%   names(tabella) <- c("day","mon","yr","prec","temp","pet","snowd")
+%   rownames(tabella) <- 1:dim(tabella)[1]
+%  ModelInput[[i]] <- tabella
+% }
+% str(ModelInput)
+% 
+% files <- list.files(pattern=".obs")
+% nomi <- sub(".obs", "", sub("Lumpi_", "", files))
+% ObsDischarges <- vector("list", length(nomi))
+%  names(ObsDischarges) <- nomi
+% for (i in 1:length(ObsDischarges)) {
+%  tabella <- read.table(files[i])
+%  tabella <- tabella[tabella[,3] > 1998,]
+%   names(tabella) <- c("day","mon","yr","disc")
+%   rownames(tabella) <- 1:dim(tabella)[1]
+%  ObsDischarges[[i]] <- tabella
+% }
+% str(ObsDischarges)
+% 
+% CatChar <- read.table("basinchar.txt", sep=",")
+% names(CatChar) <- c("idnr", "basin", "river", "area", "map", "aridity", 
+%                       "xcor", "ycor", "xcen", "ycen", "elev", "slope", "forest" )
+% 
+% library(RPostgreSQL)
+% drv <- dbDriver("PostgreSQL")
+% con <- dbConnect(drv, dbname="hydrologicdata")
+% 
+%  dummy <- paste("code='", CatChar$idnr, sep="", collapse="' OR ")
+% 
+%  stazioni <- dbGetQuery(con, paste("SELECT code, info[8] AS river, info[2] AS station, lon::real, lat::real, elev::real FROM view_stations_position WHERE ", dummy, "';", sep=""))
+% 
+% dbDisconnect(con)
+% dbUnloadDriver(drv)
+% 
+% dummy <- merge(CatChar, stazioni[,c("code", "lat", "lon")], by.x="idnr", by.y="code")
+% 
+% CatChar <- dummy[,c(1:3,14:15,7:8,4,11:13,9:10,5:6)]
+%  CatChar$area <- round(CatChar$area, 1)
+%  CatChar$elev <- round(CatChar$elev)
+%  CatChar$slope <- round(CatChar$slope, 3)
+%  CatChar$map <- round(CatChar$map)
+%  CatChar$aridity <- round(CatChar$aridity, 3)
+% 
+% CalibPar <- read.table("calibpar.txt", sep="")
+%  names(CalibPar) <- c("idnr", "csf", "ddf", "tr","ts", "meltt", "lprat", "fc", "beta", 
+%                       "k0", "k1", "k2", "lsuz", "cperc", "bmax", "croute")
+% 
+% save(list=c("ModelInput","ObsDischarges","CatChar","CalibPar"), file="data4chapter10.rda", compress="xz")
+
+
+
+
+
+
+Then the data:
+<<eval=FALSE>>=
+help(data4chapter10)
+@
+<<>>=
+data(data4chapter10)
+
+head(CatChar, 20)
+@
+
+The dataset consists of 213 Austrian basins analysed in \citet{Viglioneetal2013HESSpub3}.
+
+Plot the data on a map:
+<<>>=
+library(rworldmap)
+newMap <- getMap(resolution="low")
+@
+<<echo=FALSE, eval=TRUE>>=
+#pdf(file="FigCh10_0_2.pdf", height=5, width=8.4, pointsize=10)
+png(filename="FigCh10_0_2.png", units="in", res=144, height=5, width=8.4, pointsize=10)
+par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+colori <- rev(rainbow(10, start=0, end=.65, alpha=1))
+plot(newMap, xlim=c(11.5, 15.5), ylim=c(46, 49))
+ points(CatChar$lon, CatChar$lat, pch=21,
+        bg=colori[round(10*CatChar$aridity)],
+        cex=log10(CatChar$area))
+
+# validation catchments
+names(ObsDischarges)
+valCatChar <- CatChar[CatChar$idnr %in% names(ObsDischarges),]
+ valCatChar
+
+ points(valCatChar$lon, valCatChar$lat, pch=1, lwd=2,
+        cex=log10(valCatChar$area))
+ text(valCatChar$lon, valCatChar$lat, valCatChar$idnr, 
+      pos=4, col=4)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigCh10_0_2}
+\end{center}
+
+
+
+
+
+\section{Run TUWmodel for one basin}  \label{s:runTUWmodel}
+
+Load the libraries that will be used:
+<<PART1>>=
+library(zoo)
+library(TUWmodel)
+@
+
+Read the model inputs for basin Schönenbach (idnr=200287)
+<<>>=
+idnr='200287'
+data <- ModelInput[[idnr]]
+
+head(data, 20)
+
+days <- as.Date(strptime(paste(data[,1], data[,2], data[,3]), format="%d %m %Y"))
+P <- zoo(data[,4], order.by=days)    # daily catchment precipitation (mm/d)
+T <- zoo(data[,5], order.by=days)    # mean daily catchment temperature (deg C)
+EP <- zoo(data[,6], order.by=days)    # mean daily pot.evaporation (mm/d)
+EP[EP < 0] <- 0                      # daily potential evapotranspiration (mm/d)
+@
+
+Read the observed discharges:
+<<>>=
+data2 <- ObsDischarges[[idnr]]
+
+head(data2, 20)
+
+area <- CatChar[CatChar$idnr == idnr, "area"]
+days2 <- as.Date(strptime(paste(data2[,1], data2[,2], data2[,3]), format="%d %m %Y"))
+Q <- zoo(data2[,4], order.by=days2)    # daily discharge (m3/s)
+Qmm <- Q*86.4/area  #conversion of discharge to mm
+Qmm[Qmm < 0] <- NA
+
+head(P, 20)
+head(T, 20)
+head(EP, 20)
+head(Qmm, 20)
+@
+
+Take a subset of data for model running, e.g. 1.Nov 1999 - 31.Dec 2010:
+<<>>=
+P1 <- window(P, start=as.Date("1 11 1999", format="%d %m %Y"), end=as.Date("31 12 2010", format="%d %m %Y"))
+T1 <- window(T, start=as.Date("1 11 1999", format="%d %m %Y"), end=as.Date("31 12 2010", format="%d %m %Y"))
+EP1 <- window(EP, start=as.Date("1 11 1999", format="%d %m %Y"), end=as.Date("31 12 2010", format="%d %m %Y"))
+Q1 <- window(Qmm, start=as.Date("1 11 1999", format="%d %m %Y"), end=as.Date("31 12 2010", format="%d %m %Y"))
+@
+
+
+Run the TUWmodel, model parameters are initial guess (please check help \verb+?TUWmodel+ for explanantion about the order and meaning of model parameters):
+<<>>=
+simulation1 <- TUWmodel(prec=as.numeric(P1), airt=as.numeric(T1), ep=as.numeric(EP1), area=area,
+                        param=c(1.0, 2.0, -1.0, 1.0, 0.0, 
+                                0.8, 400.0, 0.2, 
+                                0.3, 7.0, 150.0, 
+                                50.0, 2.0, 10.0, 25.0))
+@
+
+Plot the results:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh10_1_1.pdf", height=2.4, width=6.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+sim <- as.numeric(simulation1$q)
+plot(sim)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh10_1_1}
+\end{center}
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh10_1_2.pdf", height=2.4, width=6.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=1)
+@
+<<fig=FALSE, eval=TRUE>>=
+Qsim <- zoo(sim, order.by=index(P1))
+plot(Q1, xlab="")  # observed discharge
+lines(Qsim, col="red") # simulated discharge
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh10_1_2}
+\end{center}
+
+
+
+Zoom-in the plot for selected time period:
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh10_1_3.pdf", height=2.4, width=6.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=1)
+@
+<<fig=FALSE, eval=TRUE>>=
+limit <-  as.Date(strptime(c("1 10 2002", "30 09 2003"), format="%d %m %Y"))
+plot(Q1, xlab="", ylab="mm/d", xlim=limit)
+lines(Qsim, col="red")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh10_1_3}
+\end{center}
+
+
+Calculate runoff model efficiency (e.g. Nash-Sutcliffe, NSE):
+<<>>=
+NSE <- function(simulations, observations) {
+ simu <- simulations[-c(1:304)]  # remove the warming period
+ obse <- observations[-c(1:304)]  # remove the warming period
+ mobs <- mean(obse, na.rm=TRUE)
+ 1 - sum((simu - obse)^2, na.rm=TRUE)/sum((obse - mobs)^2, na.rm=TRUE)
+}
+
+nse_sim <- NSE(sim, as.numeric(Q1))
+ nse_sim
+@
+
+
+
+
+
+\subsection{Automatic calibration of the model}
+
+This part needs to run what is in the previous sections first (loading packages, reading data, etc.).
+
+<<PART2, eval=FALSE>>=
+library(DEoptim)
+# For more details use the R help: help(DEoptim)
+@
+
+Define objective function for calibration (e.g. mean square error):
+<<>>=
+MSE <- function (param, precip, temp, potevap, runoff, area) {
+ simu <- TUWmodel(prec=as.numeric(precip), airt=as.numeric(temp), ep=as.numeric(potevap), area=area, param)$q
+ simu <- simu[-c(1:304)]  # remove the warming period (1 year)
+ obse <- runoff[-c(1:304)]  # remove the warming period (1 year)
+ mobs <- mean(as.numeric(obse), na.rm=TRUE)
+ mean((as.numeric(simu) - as.numeric(obse))^2, na.rm=TRUE)  # mean square error
+}
+@
+
+<<eval=FALSE>>=
+# ATTENTION: THIS TAKES TIME!!
+calibrate_period1 <- DEoptim(fn=MSE, lower=c(0.9, 0.0, 1.0, -3.0, -2.0, 0.0, 0.0, 0.0, 0.0, 2.0, 30.0, 1.0, 0.0, 0.0, 0.0),
+                                     upper=c(1.5, 5.0, 3.0, 1.0, 2.0, 1.0, 600.0, 20.0, 2.0, 30.0, 250.0, 100.0, 8.0, 30.0, 50.0),
+                             control=DEoptim.control(NP=NA, itermax=1000, reltol=1e-4, steptol=50, trace=10, parallelType=0),
+                             precip=P1, temp=T1, potevap=EP1, runoff=Q1, area=area)
+ bestparameters <- calibrate_period1$optim$bestmem
+@
+<<echo=FALSE>>=
+bestparameters <- c(1.0902605,1.8355005,2.9767124,-1.6523245,0.8812211,0.9714478,23.0227456,0.5457428,0.4180927,2.5367428,31.1471298,43.2437927,2.0897284,22.0635433,38.3561887)
+@
+
+<<>>=
+simulation1_cal1 <- TUWmodel(prec=as.numeric(P1), airt=as.numeric(T1), ep=as.numeric(EP1), area=area,
+                             param=bestparameters)
+ simcal <- as.numeric(simulation1_cal1$q)
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh10_2_1.pdf", height=2.4, width=6.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=1)
+@
+<<fig=FALSE, eval=TRUE>>=
+Qsimcal <- zoo(simcal, order.by=index(P1))
+plot(Q1, xlab="")  # observed discharge
+lines(Qsimcal, col="red") # simulated discharge
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh10_2_1}
+\end{center}
+
+
+
+Zoom-in the plot for selected time period:
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh10_2_2.pdf", height=2.4, width=6.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=1)
+@
+<<fig=FALSE, eval=TRUE>>=
+limit <-  as.Date(strptime(c("1 10 2002", "30 09 2003"), format="%d %m %Y"))
+plot(Q1, xlab="", ylab="mm/d", xlim=limit)
+lines(Qsimcal, col="red")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh10_2_2}
+\end{center}
+
+
+<<>>=
+nse_simcal <- NSE(simcal, as.numeric(Q1))
+ nse_simcal
+@
+
+
+Calculation of more runoff efficiency measures:
+<<>>=
+EMs <- function (sim, obs, warmup=304) {
+ # obs = observed runoff in mm/d (class numeric)
+ # sim = simulated runoff in mm/d (class numeric)
+ # warmup = warm-up period in d
+
+ simu <- as.numeric(sim[-c(1:warmup)])
+ obse <- as.numeric(obs[-c(1:warmup)])
+
+ # RMSE = root mean square error (mm/d)
+ RMSE <- sqrt(mean((simu - obse)^2, na.rm=TRUE))
+
+ # NE = Nash efficiency ()
+ mobse <- mean(obse, na.rm=TRUE)
+ NE <- 1 - sum((simu - obse)^2, na.rm=TRUE)/sum((obse - mobse)^2, na.rm=TRUE)
+
+ # lNE = log Nash efficiency ()
+ mlobse <- mean(log(obse), na.rm=TRUE)
+ lNE <- 1 - sum((log(simu) - log(obse))^2, na.rm=TRUE)/sum((log(obse) - mlobse)^2, na.rm=TRUE)
+
+ # B = bias (mm/d)
+ B <- mean(simu - obse, na.rm=TRUE)
+
+ # MAE = mean absolute error (mm/d)
+ MAE <- mean(abs(simu - obse), na.rm=TRUE)
+
+ # MAlE = mean absolute log error (mm/d)
+ MAlE <- exp(mean(abs(log(simu) - log(obse)), na.rm=TRUE))
+
+ # VE = volume error (%/%)
+ VE <- (sum(simu[!is.na(obse)]) - sum(obse, na.rm=TRUE))/sum(obse, na.rm=TRUE)
+
+ output <- c(RMSE, NE, lNE, B, MAE, MAlE, VE)
+  names(output) <- c("RMSE (mm/d)", "Nash efficiency ()", "log Nash efficiency ()", "bias (mm/d)", 
+                     "mean absolute error (mm/d)", "mean absolute log error (mm/d)", "volume error (%/%)")
+ return(output)
+}
+
+# The following code returns a matrix with the efficiencies
+efficiencies <- rbind(EMs(as.numeric(simcal), as.numeric(Q1)))
+ t(efficiencies)
+@
+
+
+
+% -------------------------------------------------------------------------- %
+
+\section{Regionalisation of TUWmodel parameters - Nearest Neighbor method}
+
+The main idea is to estimate/transfer model parameters to selected (validation) basins and run the model in there basins (which are considered as ungauged). 
+The model parameters will be transferred (regionalized) from the nearest basin.
+
+The calibrated model parameters for all 213 basins in Austria are given in \verb+calibPar+ variable
+<<PART3>>=
+head(CalibPar, 20)
+@
+
+
+The basin characteristics for the same 213 Austria basins are in \verb+CatChar+:
+<<>>=
+head(CatChar, 20)
+@
+
+Find the nearest neighbour for validation basins and write out the corresponding model parameters:
+<<>>=
+val_catch <- names(ObsDischarges)
+# initialise output matrix with idnr, nearest neighbor, distance and 15 model parameters
+reg1_Par <- as.data.frame(matrix(NA, nrow=length(val_catch), ncol=3 + 15, 
+                                 dimnames=list(1:length(val_catch), 
+                                               c("idnr", "near_neigh", "dist", names(CalibPar)[-1]))))
+ reg1_Par$idnr <- val_catch
+
+# loop (notice that the distance refers to station coordinates)
+nn <- dim(CatChar)[1]  # total number of basins in dataset
+for(j in 1:length(val_catch)) { # loop for all validation basins 
+ codice0 <- val_catch[j]
+ val_catch_Char <- CatChar[CatChar$idnr == codice0,]
+ mindist=999999999999
+ dist=mindist
+ for(jj in 1:nn) {
+  codice1 <- CatChar$idnr[jj]
+  if (codice1 != codice0) {
+   # calculate distance 
+   dist <- sqrt((val_catch_Char$xcor - CatChar$xcor[jj])^2 + 
+                (val_catch_Char$ycor - CatChar$ycor[jj])^2)
+   if (dist < mindist) {
+    finrow <- jj
+    mindist <- dist
+   }
+  }
+ }
+ codice <- CatChar$idnr[finrow]
+
+ # write on output matrix
+ reg1_Par[j, 2] <- codice
+ reg1_Par[j, 3] <- mindist
+ reg1_Par[j, 4:18] <- CalibPar[CalibPar$idnr == codice, -1]
+}
+
+reg1_Par
+@
+
+To store the results in a file do:
+<<eval=FALSE>>=
+write.csv(reg1_Par, file="reg1_Par.csv")
+@
+
+
+Plot the nearest neighbor on a map:
+<<echo=FALSE, eval=TRUE>>=
+#pdf(file="FigCh10_3_1.pdf", height=5, width=8.4, pointsize=10)
+png(filename="FigCh10_3_1.png", units="in", res=144, height=5, width=8.4, pointsize=10)
+par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+donorsCatChar <- CatChar[CatChar$idnr %in% reg1_Par$near_neigh,] 
+plot(newMap, xlim=c(11.5, 15.5), ylim=c(46, 49))
+ segments(x0=valCatChar$lon, y0=valCatChar$lat, 
+          x1=donorsCatChar$lon, y1=donorsCatChar$lat)
+ points(valCatChar$lon, valCatChar$lat, pch=21, bg=2,
+        cex=log10(valCatChar$area))
+ points(donorsCatChar$lon, donorsCatChar$lat, pch=21, bg=4,
+        cex=log10(valCatChar$area))
+ legend("topleft", legend=c("donor","receiver"), pch=21, pt.bg=c(4,2), bty="n", cex=1.6)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigCh10_3_1}
+\end{center}
+
+
+
+Check the runoff model efficiency of the nearest neighbor regionalisation method for the basin analysed in Section \ref{s:runTUWmodel}:
+<<PART4>>=
+idnr
+@
+<<>>=
+reg1_Par[reg1_Par$idnr == idnr,]
+
+reg_par <- reg1_Par[reg1_Par$idnr == idnr, 4:18]
+
+simulation1_reg1 <- TUWmodel(prec=as.numeric(P1), airt=as.numeric(T1), ep=as.numeric(EP1), area=area, 
+                             param=reg_par)
+
+sim_reg1 <- as.numeric(simulation1_reg1$q)
+
+efficiencies_reg1 <- EMs(sim_reg1, as.numeric(Q1))
+ efficiencies_reg1
+@
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh10_3_2.pdf", height=2.4, width=6.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=1)
+@
+<<fig=FALSE, eval=TRUE>>=
+Qsim_reg1 <- zoo(sim_reg1, order.by=index(P1))
+plot(Q1, xlab="") # observed discharge
+lines(Qsim_reg1, col="red")  # simulated discharge
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh10_3_2}
+\end{center}
+
+
+
+Zoom-in the plot for selected time period:
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh10_3_3.pdf", height=2.4, width=6.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=1)
+@
+<<fig=FALSE, eval=TRUE>>=
+limit <-  as.Date(strptime(c("1 10 2002", "30 09 2003"), format="%d %m %Y"))
+plot(Q1, xlab="", ylab="mm/d", xlim=limit)
+lines(Qsim_reg1, col="red")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh10_3_3}
+\end{center}
+
+
+
+
+Lets run the model for the rest of validation basins and evaluate the efficiency of nearest neighbor regionalisation, e.g. 
+<<eval=FALSE>>=
+idnr='212076'
+@
+and repeat the code from:
+<<eval=FALSE>>=
+reg1_Par[reg1_Par$idnr == idnr,]
+@
+onward.
+
+
+
+
+
+% -------------------------------------------------------------------------- %
+
+\section{Regionalisation of TUWmodel parameters - Similarity method}
+
+The main idea is to estimate/transfer model parameters to selected (validation) basins and run the model in there basins (which are considered as ungauged). 
+The model parameters will be transferred (regionalized) from the most similar basin in terms of selected basin characteristics.
+
+Normalisation of basin characteristics (find minimum and maximum of catchment attributes and their range):
+<<>>=
+catmin <- apply(CatChar[,-c(1:5)], 2, min)
+catmax <- apply(CatChar[,-c(1:5)], 2, max)
+catrange <- catmax - catmin
+ catrange
+norm_char <- (CatChar[,-c(1:5)] - matrix(catmin, nrow=dim(CatChar)[1], ncol=10, byrow=TRUE))/
+                                   (matrix(catrange, nrow=dim(CatChar)[1], ncol=10, byrow=TRUE))
+head(norm_char, 20)
+@
+
+Give weights to different characteristics (do it manually), the order is like the names in \verb+catrange+:
+<<>>=
+names(catrange)
+#wcat <- c(0.,0.,1.,0.,0.,0.,0.,0.,0.,0.)   # area only
+#wcat <- c(0.,0.,1.,1.,1.,1.,0.,0.,0.,0.)   # area, elevation, slope and forest
+wcat <- c(0.,0.,1.,0.,0.,0.,0.,0.,1.,0.)   # area, map
+@
+
+Find for each validation basin the most similar one and write out the corresponding model parameters:
+<<>>=
+# initialise output matrix with idnr, similar catchment, normalised distance and 15 model parameters
+reg2_Par <- as.data.frame(matrix(NA, nrow=length(val_catch), ncol=3 + 15,
+                                 dimnames=list(1:length(val_catch),
+                                               c("idnr", "sim_catch", "norm_dist", names(CalibPar)[-1]))))
+ reg2_Par$idnr <- val_catch
+
+# take just the weighted characteristics
+norm_char0 <- norm_char*matrix(wcat, nrow=dim(norm_char)[1], ncol=10, byrow=TRUE)
+
+# loop (notice that the distance refers to station coordinates)
+nn <- dim(CatChar)[1]
+for(j in 1:length(val_catch)) {
+ codice0 <- val_catch[j]
+ val_norm_char0 <- norm_char0[CatChar$idnr == codice0,]  # since norm_char0 and CatChar have corresponding rows
+ mindist=999999999999
+ dist=mindist
+ for(jj in 1:nn) {
+  codice1 <- CatChar$idnr[jj]
+  if (codice1 != codice0) {
+   dist <- sum(abs(val_norm_char0 - norm_char0[jj,]))
+   if (dist < mindist) {
+    finrow <- jj
+    mindist <- dist
+   }
+  }
+ }
+ codice <- CatChar$idnr[finrow]
+
+ # write on output matrix
+ reg2_Par[j, 2] <- codice
+ reg2_Par[j, 3] <- mindist
+ reg2_Par[j, 4:18] <- CalibPar[CalibPar$idnr == codice, -1]
+}
+
+reg2_Par
+@
+%   <<>>=
+%   catL <- matrix(ncol=10, nrow=nn)  # local ..
+%   catR <- matrix(ncol=10, nrow=nn)  # regional
+%   
+%   # initialise output matrix with idnr, similar catchment, normalised distance and 15 model parameters
+%   reg2_Par <- as.data.frame(matrix(NA, nrow=nn, ncol=3 + 15,
+%                                    dimnames=list(1:nn, c("idnr", "sim_catch", "norm_dist", names(CalibPar)[-1]))))
+%    reg2_Par$idnr <- CatChar$idnr
+%   
+%   # loop (notice that the distance refers to station coordinates)
+%   nn <- dim(CatChar)[1]
+%   for(j in 1:nn) {
+%    mindist=999999999999
+%    dist=mindist
+%    for(jj in 1:nn) {
+%     dist=0.
+%     if (jj != j) {
+%      for (par in 1:10) {
+%       catL[j,par] <- (CatChar[j, par + 5] - catmin[par])/catrange[par]
+%       catR[jj,par] <- (CatChar[jj, par + 5] - catmin[par])/catrange[par]
+%       dist <- dist + wcat[par]*abs(catL[j, par] - catR[jj, par])
+%      }
+%     }
+%     if (dist < mindist) {
+%      finrow <- jj
+%      mindist <- dist
+%     }
+%    }
+%    codice <- CatChar$idnr[finrow]
+%   
+%    # write on output matrix
+%    reg2_Par[j, 2] <- codice
+%    reg2_Par[j, 3] <- mindist
+%    reg2_Par[j, 4:18] <- CalibPar[CalibPar$idnr == codice, -1]
+%   }
+%   
+%   reg2_Par
+%   @
+
+
+To store the results in a file do:
+<<eval=FALSE>>=
+write.csv(reg2_Par, file="reg2_Par.csv")
+@
+
+
+Plot the nearest neighbor on a map:
+<<echo=FALSE, eval=TRUE>>=
+#pdf(file="FigCh10_4_1.pdf", height=5, width=8.4, pointsize=10)
+png(filename="FigCh10_4_1.png", units="in", res=144, height=5, width=8.4, pointsize=10)
+par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+donorsCatChar <- CatChar[CatChar$idnr %in% reg2_Par$sim_catch,] 
+plot(newMap, xlim=c(11.5, 15.5), ylim=c(46, 49))
+ segments(x0=valCatChar$lon, y0=valCatChar$lat, 
+          x1=donorsCatChar$lon, y1=donorsCatChar$lat)
+ points(valCatChar$lon, valCatChar$lat, pch=21, bg=2,
+        cex=log10(valCatChar$area))
+ points(donorsCatChar$lon, donorsCatChar$lat, pch=21, bg=4,
+        cex=log10(valCatChar$area))
+ legend("topleft", legend=c("donor","receiver"), pch=21, pt.bg=c(4,2), bty="n", cex=1.6)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigCh10_4_1}
+\end{center}
+
+
+
+Check the efficiency of the similarity regionalisation method for the catchment analised in Section \ref{s:runTUWmodel}:
+<<PART6>>=
+idnr
+@
+<<>>=
+reg2_Par[reg2_Par$idnr == idnr,]
+
+reg_par <- reg2_Par[reg2_Par$idnr == idnr, 4:18]
+
+simulation1_reg2 <- TUWmodel(prec=as.numeric(P1), airt=as.numeric(T1), ep=as.numeric(EP1), area=area,
+                             param=reg_par)
+
+sim_reg2 <- as.numeric(simulation1_reg2$q)
+
+efficiencies_reg2 <- EMs(sim_reg2, as.numeric(Q1))
+ efficiencies_reg2
+@
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh10_4_2.pdf", height=2.4, width=6.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=1)
+@
+<<fig=FALSE, eval=TRUE>>=
+Qsim_reg2 <- zoo(sim_reg2, order.by=index(P1))
+plot(Q1, xlab="") # observed discharge
+lines(Qsim_reg2, col="red")  # simulated discharge
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off() 
+@
+ 
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh10_4_2}
+\end{center}
+
+
+
+Zoom-in the plot for selected time period:
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh10_4_3.pdf", height=2.4, width=6.4, pointsize=8)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=1)
+@
+<<fig=FALSE, eval=TRUE>>=
+limit <-  as.Date(strptime(c("1 10 2002", "30 09 2003"), format="%d %m %Y"))
+plot(Q1, xlab="", ylab="mm/d", xlim=limit)
+lines(Qsim_reg2, col="red")
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh10_4_3}
+\end{center}
+
+
+
+
+Lets repeat it for the other basins and compare it for different similarity definitions (weights) and compare it with the nearest neighbor approach.
+
+
+
+
+
+% -------------------------------------------------------------------------- %
+
+\section{Compare to the PUB book assessment}
+
+In the Level 2 Assessment of the PUB book \citep{Bloeschletal2013PUBbook} in Chapter 10 the Nasch Sutcliffe efficiency of regional studies is reported.
+<<>>=
+valCatChar[valCatChar$idnr == idnr,]
+@
+
+Fig 10.38 at page 267 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh10_5_1.pdf", height=2.8*2, width=10.4, pointsize=10)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:8, nrow=2, byrow=FALSE))
+plotPUBfiguresLevel2(chapter=10, method="Spatial_proximity", performance="NSE",
+                     characteristic="Aridity", ylim=c(0,1),
+                     main="Spatial_proximity")
+ points(1, efficiencies_reg1[2], pch=21, bg=2, cex=2)  # because of 1st class of aridity
+plotPUBfiguresLevel2(chapter=10, method="Similarity", performance="NSE",
+                     characteristic="Aridity", ylim=c(0,1),
+                     main="Similarity")
+ points(1, efficiencies_reg2[2], pch=21, bg=2, cex=2)  # because of 1st class of aridity
+
+plotPUBfiguresLevel2(chapter=10, method="Spatial_proximity", performance="NSE",
+                     characteristic="MAT", ylim=c(0,1))
+plotPUBfiguresLevel2(chapter=10, method="Similarity", performance="NSE",
+                     characteristic="MAT", ylim=c(0,1))
+
+plotPUBfiguresLevel2(chapter=10, method="Spatial_proximity", performance="NSE",
+                     characteristic="Elevation", ylim=c(0,1))
+ points(5, efficiencies_reg1[2], pch=21, bg=2, cex=2)  # because of 5th class of elevation
+plotPUBfiguresLevel2(chapter=10, method="Similarity", performance="NSE",
+                     characteristic="Elevation", ylim=c(0,1))
+ points(5, efficiencies_reg2[2], pch=21, bg=2, cex=2)  # because of 5th class of elevation
+
+plotPUBfiguresLevel2(chapter=10, method="Spatial_proximity", performance="NSE",
+                     characteristic="Area", ylim=c(0,1))
+ points(1, efficiencies_reg1[2], pch=21, bg=2, cex=2)  # because of 1st class of area
+plotPUBfiguresLevel2(chapter=10, method="Similarity", performance="NSE",
+                     characteristic="Area", ylim=c(0,1))
+ points(1, efficiencies_reg2[2], pch=21, bg=2, cex=2)  # because of 1st class of area
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh10_5_1}
+\end{center}
+
+
+
+Lets plot the other basins (points) to the figure using the \verb+points+ command, e.g.:
+<<eval=FALSE>>=
+points(3, efficiencies_reg1[2], pch=21, bg="blue", cex=2)  # because of 3rd class of aridity
+@
+
+
+
+
+
+
+
+\begin{thebibliography}{}
+
+\bibitem[Blöschl et al., 2013]{Bloeschletal2013PUBbook}
+Blöschl, G., Sivapalan, M., Wagener, T., Viglione, A. and Savenije, H. (2013)
+\newblock {\em Runoff Prediction in Ungauged Basins: Synthesis Across Processes, Places and Scales}, University Press, Cambridge, 484 pages, ISBN:9781107028180. 
+
+\bibitem[Parajka et al., 2013]{Parajkaetal2013PUBbookCh10}
+Parajka, J., V. Andréassian, S. A., Archfield, A. Bárdossy, G. Blöschl, F. Chiew, Q. Duan, A. Gelfan, K. Hlavčová, R. Merz, N. McIntyre, L. Oudin, C. Perrin, M. Rogger, J. L. Salinas, H. G. Savenije, J. O. Skøien, T. Wagener, E. Zehe and Y. Zhang (2013).
+\newblock Prediction of runoff hydrographs in ungauged basins.
+\newblock In {\em Runoff Prediction in Ungauged Basins: Synthesis Across Processes, Places and Scales}, University Press, Cambridge, 135-162, ISBN:9781107028180.
+
+\bibitem[Viglione et al., 2013]{Viglioneetal2013HESSpub3}
+Viglione, A., J. Parajka, M. Rogger, J.L. Salinas, G. Laaha, M. Sivapalan and G. Bl\"oschl (2013).
+\newblock Comparative assessment of predictions in ungauged basins - Part 3: Runoff signatures in Austria.
+\newblock {\em Hydrology and Earth System Sciences}, {\bf 17}, 2263–2279, \doi{10.5194/hess-17-2263-2013}.
+
+\end{thebibliography}
+
+
+<<echo=FALSE>>=
+options(prompt="> ", continue="+ ")
+@
+
+\end{document}
+

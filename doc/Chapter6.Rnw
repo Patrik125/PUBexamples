@@ -1,0 +1,1597 @@
+\documentclass[a4paper, 10pt]{article}
+\usepackage{graphics}                 % Packages to allow inclusion of graphics
+\usepackage[utf8]{inputenc}   % To allow umlaut
+\usepackage[pdftex]{graphicx}
+\usepackage{fancyhdr}
+\usepackage[figuresright]{rotating}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{hyperref}
+\usepackage{doi}
+\usepackage{natbib}
+%\usepackage{/usr/local/lib/R/share/texmf/tex/latex/Sweave}   % old pc
+\usepackage{/usr/share/R/share/texmf/tex/latex/Sweave}  % new pc
+
+\usepackage{colortbl}      
+\newcommand{\comm}[1]{\textcolor{red}{#1}}    
+\newcommand{\readerhelp}[1]{\noindent\colorbox{yellow}{\textcolor{cyan}{(#1)}}}
+
+%\usepackage{unicode-math}  % for bold greek letters
+
+
+
+% Margini
+\setlength{\textwidth} {180mm}
+\setlength{\textheight}{255mm}      %Altezza testo 227 mm
+%\setlength{\topmargin} {0.1mm}
+
+\setlength{\evensidemargin}{-10mm} %Margini per l'opzione twoside
+\setlength{\oddsidemargin} {-10mm}
+\setlength{\topmargin}{-20mm}
+
+
+%\VignetteIndexEntry{Chapter 06: Prediction of seasonal runoff in ungauged basins - a EU example}
+
+% Header
+\pagestyle{fancy}
+
+% For figure numbering
+\numberwithin{figure}{section}
+
+\setkeys{Gin}{width=0.49\textwidth}
+
+\SweaveOpts{keep.source=TRUE, include=TRUE, width=5, height=3.3, echo=TRUE, results=verbatim}
+
+
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{.5\baselineskip}
+
+% units of measurements
+\newcommand{\udm}[1]{\ensuremath{{\rm #1}}}
+
+
+% colori delle scritte
+\definecolor{darkred}{rgb}{0.545,0,0} 
+\definecolor{midnightblue}{rgb}{0.098,0.098,0.439}
+\DefineVerbatimEnvironment{Sinput}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{midnightblue}}}
+\DefineVerbatimEnvironment{Soutput}{Verbatim}{xleftmargin=2em, fontsize=\tiny, formatcom={\color{darkred}}}
+\DefineVerbatimEnvironment{Scode}{Verbatim}{xleftmargin=2em, fontsize=\scriptsize, fontshape=sl,formatcom={\color{blue}}}
+\fvset{listparameters={\setlength{\topsep}{0pt}}}
+\renewenvironment{Schunk}{\vspace{\topsep}}{\vspace{\topsep}}
+
+
+
+
+
+
+
+
+
+\title{Chapter 6: Prediction of seasonal runoff in ungauged basins - a EU example}
+\author{Alberto Viglione}
+\date{}
+
+
+
+
+\begin{document}
+\maketitle
+
+<<echo=FALSE>>=
+options(width=180)
+options(prompt=" ", continue=" ")
+@
+
+
+
+
+\section{Introduction}  \label{s:intro}
+
+This Tutorial has been developed by \href{http://floodchange.hydro.tuwien.ac.at/team/alberto-viglione/}{Alberto Viglione} to illustrate the regional prediction of seasonal runoff in ungauged basins \citep[see,][]{Weingartneral2013PUBbookCh6}.
+The idea is to predict the seasonality of runoff (measured by the Pard\'e coefficients) in Europe based on a dataset of 763 catchments in EU, where we have some basic information on runoff, precipitation, temperature and solar radiation.
+
+
+First of all load the library:
+<<>>=
+library(PUBexamples)
+@
+
+
+Then the data:
+<<eval=FALSE>>=
+help(data4chapter5and6)
+@
+<<>>=
+data(data4chapter5and6)
+
+head(CatchmentsEU, 15)
+
+head(meanQmon, 15)   # mean monthly discharge (m3/s)
+head(meanPmon, 15)   # mean monthly catchment precipitation (mm/d)
+head(meanTmon, 15)   # mean monthly catchment temperature (deg C)
+head(meanSImon, 15)  # mean monthly catchment SI ratio
+@
+
+
+
+In the exercise on annual runoff prediction in ungauged basins, some useful variables where derived from the data:
+<<>>=
+MAQ <- apply(meanQmon, 1, mean)  # m3/s
+A <- CatchmentsEU$area  # km2
+MAR <- 365.25*24*3.6*MAQ/A  # mm/yr
+MAP <- 365.25*apply(meanPmon, 1, mean, na.rm=TRUE)  # mm/yr
+MAT <- apply(meanTmon, 1, mean, na.rm=TRUE)  # degC
+meanEPmon <- -1.55 + 0.96*(8.128 + 0.457*meanTmon)*meanSImon
+ meanEPmon[meanEPmon < 0] <- 0                       # mean monthly potential evapotranspiration (mm/d)
+PET <- 365.25*apply(meanEPmon, 1, mean, na.rm=TRUE)  # mm/yr
+@
+<<>>=
+PETovP <- PET/MAP   # aridity index
+MARovMAP <- MAR/MAP  # runoff ratio
+ETovP <- (MAP - MAR)/MAP  # actual evaporation over precipitation
+@
+
+
+This exercise is instead about seasonality of runoff, which can be quantified for each station through the Pard\'e coefficients (i.e., the mean monthly runoff divided by the mean annual runoff):
+<<>>=
+PkQ <- meanQmon/matrix(MAQ, nrow=dim(meanQmon)[1], ncol=12, byrow=FALSE)
+ head(PkQ, 15)
+ summary(PkQ)
+ summary(apply(PkQ, 1, mean))
+@
+
+
+To visualise the Pard\'e coefficients you can do (some examples plotted hereafter):
+<<eval=FALSE>>=
+for (i in 1:length(CatchmentsEU$code)) {
+ plot(c(1:12), PkQ[i,], type="b", xlab="", ylab="Parde", 
+      main=paste(CatchmentsEU$code[i], ": ", CatchmentsEU$river[i], " at ", CatchmentsEU$station[i], sep=""),
+      cex.main=1, font.main=1, ylim=c(0,4))
+ readline(i)
+}
+@
+<<echo=FALSE, fig=FALSE, results=hide, eval=TRUE>>=
+pdf(file="FigCh6_0_1.pdf", height=4.4, width=6.8, pointsize=9)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+
+layout(matrix(1:12, nrow=3, byrow=TRUE))
+esempiselezionati <- c(1,38,61,62,132,149,
+                       223,237,262,391,643,668)
+for (i in esempiselezionati) {
+ plot(c(1:12), PkQ[i,], type="b", xlab="", ylab="Parde", 
+      main=paste(CatchmentsEU$code[i], ": ", CatchmentsEU$river[i], " at ", CatchmentsEU$station[i], sep=""),
+      cex.main=.7, font.main=1, ylim=c(0,4))
+}
+
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.8\textwidth]{FigCh6_0_1}
+\end{center}
+
+
+There are similarities and differences. 
+It would be nice to have a way to describe these courves in a compact way and plot them on a map.
+Propose possibilities.
+
+
+\vspace{1cm}
+
+To me the characteristics of runoff seasonality that should be captured are (1) its amplitude (difference between months, range of Pard\'e) and (2) phase (when does the maximum/minimum occurs)?
+The simplest way, that I can think of, is to plot on a map points whose color correspond to the month of maximum runoff and whose size is proportional to the range of the Pard\'e coefficients:
+<<>>=
+monMaxPkQ <- apply(PkQ, 1, FUN=which.max)
+rangePkQ <- apply(PkQ, 1, FUN=function(x){max(x) - min(x)})
+ summary(rangePkQ)
+@
+which plot like that:
+<<>>=
+library(rworldmap)
+newMap <- getMap(resolution="coarse")  # you can use resolution="low", which is better
+@
+<<echo=FALSE, eval=TRUE>>=
+#png(filename="FigCh6_0_2.png", units="in", res=144, height=6, width=7, pointsize=10)
+pdf(file="FigCh6_0_2.pdf", height=6, width=7, pointsize=10)
+par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+# for colors
+colori.stagioni <- colorRampPalette(c("#1569C7","#56A5EC","#3B9C9C","#4AA02C","#52D017","#D4A017",
+                                      "#FF0000","#F75D59","#FFF380","#786D5F","#B6B6B4","#488AC7"))
+# for avoiding overlap
+ordina <- order(rangePkQ, decreasing=TRUE)
+# you want to try also with 
+#ordina <- order(rangePkQ, decreasing=FALSE)
+plot(newMap, xlim=range(CatchmentsEU$lon), ylim=range(CatchmentsEU$lat))
+ points(CatchmentsEU$lon[ordina], CatchmentsEU$lat[ordina], pch=16,
+        cex=.7*rangePkQ[ordina],
+        col=colori.stagioni(12)[monMaxPkQ[ordina]])
+legend("topleft", legend=c(.5,1,2,3,4), title="rangePkQ", pch=1, pt.lwd=.5,
+       pt.cex=.7*c(.5,1,2,3,4), box.col="white", bg="white", inset=c(0,0.25))
+legend("topleft", legend=month.abb, pch=16, pt.cex=1.5,
+       col=colori.stagioni(12),
+       ncol=4, box.col="white", bg="white", inset=c(0,0.11))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigCh6_0_2}
+\end{center}
+
+
+Well, some nice spatial patterns appear and may be useful for interpretation.
+What do you see?
+
+The previous plots can be coloured now:
+<<eval=FALSE>>=
+for (i in 1:length(CatchmentsEU$code)) {
+ plot(c(1:12), PkQ[i,], type="b", xlab="", ylab="Parde",
+      main=paste(CatchmentsEU$code[i], ": ", CatchmentsEU$river[i], " at ", CatchmentsEU$station[i], sep=""),
+      cex.main=1, font.main=1, ylim=c(0,4),
+      cex=.7*rangePkQ[i],
+      pch=16, col=colori.stagioni(12)[monMaxPkQ[i]])
+ readline(i)
+}
+@
+<<echo=FALSE, fig=FALSE, results=hide, eval=TRUE>>=
+pdf(file="FigCh6_0_3.pdf", height=4.4, width=6.8, pointsize=9)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+
+layout(matrix(1:12, nrow=3, byrow=TRUE))
+for (i in esempiselezionati) {
+ plot(c(1:12), PkQ[i,], type="b", xlab="", ylab="Parde",
+      main=paste(CatchmentsEU$code[i], ": ", CatchmentsEU$river[i], " at ", CatchmentsEU$station[i], sep=""),
+      cex.main=.7, font.main=1, ylim=c(0,4),
+      cex=.7*rangePkQ[i],
+      pch=16, col=colori.stagioni(12)[monMaxPkQ[i]])
+}
+
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.8\textwidth]{FigCh6_0_3}
+\end{center}
+
+
+The plotted points do not capture well the bimodalities, that's a compromise.
+
+
+\vspace{1cm}
+
+One question related to Chapter 5 is: does this way of plotting points help to interpret Budyko?
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_0_4.pdf", height=3.4, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+#ordina <- order(rangePkQ, decreasing=TRUE)
+plot(PETovP[ordina], ETovP[ordina],
+     xlim=c(0,2), ylim=c(-1,1), xlab="PET/P", ylab="ET/P", pch=16, 
+     col=colori.stagioni(12)[monMaxPkQ[ordina]], 
+     cex=.7*rangePkQ[ordina])
+ segments(x0=c(0,1), x1=c(1,4), y0=c(0,1), y1=c(1,1), lty=2)
+ segments(x0=0, x1=4, y0=0, lty=2)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh6_0_4}
+\end{center}
+
+
+Mmmm... maybe there is something. Maybe estimating seasonality could help to estimate annual runoff too!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% --------------------------------------------------------------------------------------------- %
+
+\section{Spatial proximity as explanatory variable}  \label{s:nearestneigh}
+
+Since we see that there is quite a nice spatial coherence in the seasonality, spatial proximity should be a good way to predict Pard\'e in ungauged basins.
+Let's try the nearest neighbor approach.
+
+We have latitude and longitude of the gauging stations, let's use them.
+<<>>=
+head(CatchmentsEU, 15)
+@
+
+On the internet I came around this function that roughly calculate the euclidean distance in kilometers between two points given in longitude and latitude values. 
+It might be not too precise due to the inaccurate estimate of the earth radius (\verb+R+).
+Juraj Parajka can tell you how to do it better :-)
+<<>>=
+# Calculate distance in kilometers between two points
+earth.dist <- function (long1, lat1, long2, lat2) {
+ rad <- pi/180
+ a1 <- lat1 * rad
+ a2 <- long1 * rad
+ b1 <- lat2 * rad
+ b2 <- long2 * rad
+ dlon <- b2 - a2
+ dlat <- b1 - a1
+ a <- (sin(dlat/2))^2 + cos(a1) * cos(b1) * (sin(dlon/2))^2
+ c <- 2 * atan2(sqrt(a), sqrt(1 - a))
+ R <- 6378.145
+ d <- R * c
+ return(d)
+}
+@
+
+the function can be used as follows:
+<<eval=FALSE>>=  # the code below should do the trick in a much faster way
+nn <- length(CatchmentsEU$code)
+spatNN <- data.frame(matrix(ncol=2, nrow=nn, dimnames=list(CatchmentsEU$code, c("code","dist"))))
+# THIS TAKES SOME SECONDS
+for (i in 1:nn) {
+ mindist=Inf
+ dist=mindist
+ for (j in 1:nn) {
+  if (j != i) {
+   # calculate distance
+   distanza <- earth.dist(CatchmentsEU$lon[i], CatchmentsEU$lat[i], CatchmentsEU$lon[j], CatchmentsEU$lat[j])
+   if (distanza < mindist) {
+    finrow <- j
+    mindist <- distanza
+   }  
+  }
+ }
+ # write on output data.frame
+ spatNN[i, "dist"] <- mindist
+ spatNN[i, "code"] <- CatchmentsEU$code[finrow]
+}
+@
+<<eval=TRUE, echo=FALSE>>=
+# this code serves just for speeding up the upper one :-)
+library(sp)
+## Sim up two sets of 100 points, we'll call them set a and set b:
+a <- SpatialPoints(coords = data.frame(x=CatchmentsEU$lon, y=CatchmentsEU$lat), proj4string=CRS("+proj=longlat +datum=WGS84"))
+spatDistances <- spDists(a, a, longlat=TRUE)
+ diag(spatDistances) <- 9999999999
+finrow <- apply(spatDistances, 1, which.min)
+mindist <- apply(spatDistances, 1, min)
+spatNN <- data.frame(dist=mindist, code=CatchmentsEU$code[finrow])
+# plot(spatNN$dist - spatNN$dist)  # good enough
+# spatNN$code - spatNN$code  # only one mismatch
+rownames(spatNN) <- CatchmentsEU$code
+@
+<<>>=
+head(spatNN, 20)
+@
+
+Check it visually for each catchment:
+<<eval=FALSE>>=
+for (i in 1:length(CatchmentsEU$code)) {
+ plot(c(1:12), PkQ[i,], type="b", xlab="", ylab="Parde",
+      main=paste(CatchmentsEU$code[i], ": ", CatchmentsEU$river[i], " at ", CatchmentsEU$station[i], sep=""),
+      cex.main=1, font.main=1, ylim=c(0,4))
+ donor <- which(CatchmentsEU$code == spatNN$code[i])
+ lines(c(1:12), PkQ[donor,], type="b", col=2) 
+ readline(i)
+}
+@
+<<echo=FALSE, fig=FALSE, results=hide, eval=TRUE>>=
+pdf(file="FigCh6_1_1.pdf", height=4.4, width=6.8, pointsize=9)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+
+layout(matrix(1:12, nrow=3, byrow=TRUE))
+for (i in esempiselezionati) {
+ plot(c(1:12), PkQ[i,], type="b", xlab="", ylab="Parde",
+      main=paste(CatchmentsEU$code[i], ": ", CatchmentsEU$river[i], " at ", CatchmentsEU$station[i], sep=""),
+      cex.main=.7, font.main=1, ylim=c(0,4))
+ donor <- which(CatchmentsEU$code == spatNN$code[i])
+ lines(c(1:12), PkQ[donor,], type="b", col=2)
+}
+
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.8\textwidth]{FigCh6_1_1}
+\end{center}
+
+
+It is not too bad, but what about using a compact error measure to plot the goodness of our method?
+A possible one is the widely used Nash-Sutcliffe coefficient, which is also used in the PUB book assessment of Chapter 6 \citep[][page 130]{Bloeschletal2013PUBbook}.
+<<>>=
+calcNSE <- function (est, obs) {
+ # est = estimated Parde (vector of 12 values)
+ # obs = observed Parde (vector of 12 values)
+ est <- as.numeric(est)
+ obs <- as.numeric(obs)
+
+ # Nash efficiency ()
+ mobs <- mean(obs)
+ NSE <- 1 - sum((est - obs)^2)/sum((obs - mobs)^2)
+ return(NSE)
+}
+@
+Let's use it for all catchments:
+<<>>=
+NSEs <- rep(NA, length(CatchmentsEU$code))
+for (i in 1:length(CatchmentsEU$code)) {
+ donor <- which(CatchmentsEU$code == spatNN$code[i])
+ NSEs[i] <- calcNSE(PkQ[donor,], PkQ[i,])
+}
+spatNN$NSE <- NSEs
+@
+
+
+And let's plot it as a function of distance between neighbors and with a boxplot that can be compared with the assessment figures in the PUB book.
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_1_2.pdf", height=3.2, width=7.2, pointsize=12)
+par(mar=c(3,3,2,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+boxplot20 <- function(m, ...){
+ # m has to be a data.frame or list
+ bp <- boxplot(m, plot=FALSE)
+ bp$stats <- sapply(m, function(x)
+                   quantile(x, c(0.2,0.4, 0.5, 0.6, 0.8), na.rm=TRUE))
+ bxp(bp, outline=FALSE, ...)
+}
+
+layout(matrix(1:3, nrow=1), widths=c(5,5,1))
+DD <- spatNN$dist
+DD[DD == 0] <- NA
+ordina <- order(rangePkQ, decreasing=TRUE)
+plot(DD[ordina], spatNN$NSE[ordina], 
+     xlab="nearest station (km)", ylab="NSE",
+     log="x", xlim=c(1e-1, 3e3), ylim=c(-100, 1),
+     cex=.7*rangePkQ,
+     pch=16, col=colori.stagioni(12)[monMaxPkQ])
+ grid()
+plot(DD[ordina], spatNN$NSE[ordina], 
+     xlab="nearest station (km)", ylab="NSE",
+     log="x", xlim=c(1e-1, 3e3), ylim=c(0, 1),
+     cex=.7*rangePkQ,
+     pch=16, col=colori.stagioni(12)[monMaxPkQ])
+ grid()
+ axis(4)
+par(mar=c(3,0,2,0)+0.03)
+boxplot20(as.data.frame(spatNN$NSE), 
+          ylim=c(0, 1), axes=FALSE)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.7\textwidth]{FigCh6_1_2}
+\end{center}
+
+
+Comparing it to Fig. 6.28 at page 130 of the book, the result is nice.
+
+
+%   However, what if the station density would be smaller?
+%   <<echo=FALSE>>=
+%   set.seed(1223)
+%   @
+%   <<eval=TRUE>>=
+%   # 10% of the stations
+%   C_EU01 <- CatchmentsEU[sort(sample(1:nn, 76)),] 
+%   nn01 <- length(C_EU01$code)
+%   NN_01 <- data.frame(matrix(ncol=2, nrow=nn01, 
+%                       dimnames=list(C_EU01$code, c("code","dist"))))
+%   for (i in 1:nn01) {
+%    mindist=Inf
+%    dist=mindist
+%    for (j in 1:nn01) {
+%     if (j != i) {
+%      # calculate distance
+%      distanza <- earth.dist(C_EU01$lon[i], C_EU01$lat[i], C_EU01$lon[j], C_EU01$lat[j])
+%      if (distanza < mindist) {
+%       finrow <- j
+%       mindist <- distanza
+%      }
+%     }
+%    }
+%    # write on output data.frame
+%    NN_01[i, "dist"] <- mindist
+%    NN_01[i, "code"] <- C_EU01$code[finrow]
+%   }
+%   @
+%   
+%   <<>>=
+%   NSEs <- rep(NA, length(C_EU01$code))
+%   for (i in 1:length(C_EU01$code)) {
+%    donor <- which(C_EU01$code == NN_01$code[i])
+%    NSEs[i] <- calcNSE(PkQ[donor,], PkQ[i,])
+%   }
+%   NN_01$NSE <- NSEs
+%   @
+%   
+%   <<echo=FALSE, eval=TRUE>>=
+%   pdf(file="FigCh6_1_3.pdf", height=3.2, width=7.2, pointsize=12)
+%   par(mar=c(3,3,2,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+%   @
+%   <<fig=FALSE, eval=TRUE>>=
+%   rPkQ01 <- rangePkQ[CatchmentsEU$code %in% C_EU01$code]
+%   mMPkQ01 <- monMaxPkQ[CatchmentsEU$code %in% C_EU01$code]
+%   layout(matrix(1:3, nrow=1), widths=c(5,5,1))
+%   DD <- NN_01$dist
+%   DD[DD == 0] <- NA
+%   ordina <- order(rPkQ01, decreasing=TRUE)
+%   plot(DD[ordina], NN_01$NSE[ordina],
+%        xlab="nearest station (km)", ylab="NSE",
+%        log="x", xlim=c(1e-1, 3e3), ylim=c(-100, 1),
+%        cex=.7*rPkQ01,
+%        pch=16, col=colori.stagioni(12)[mMPkQ01])
+%    grid()
+%   plot(DD[ordina], NN_01$NSE[ordina],
+%        xlab="nearest station (km)", ylab="NSE",
+%        log="x", xlim=c(1e-1, 3e3), ylim=c(0, 1),
+%        cex=.7*rPkQ01,
+%        pch=16, col=colori.stagioni(12)[mMPkQ01])
+%    grid()
+%    axis(4)
+%   par(mar=c(3,0,2,0)+0.03)
+%   boxplot20(as.data.frame(NN_01$NSE),
+%             ylim=c(0, 1), axes=FALSE)
+%   @
+%   <<echo=FALSE, eval=TRUE, results=hide>>=
+%   dev.off()
+%   @
+%   
+%   \begin{center}
+%    \includegraphics[width=.7\textwidth]{FigCh6_1_3}
+%   \end{center}
+%   
+%   
+%   <<>>=
+%   summary(spatNN$NSE)
+%   summary(NN_01$NSE)
+%   @
+%   
+%   Not too bad after all.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% --------------------------------------------------------------------------------------------- %
+
+\section{What about the climate seasonality?}  \label{s:climaSvsArid}
+
+So far we have used spatial proximity as similarity measure.
+Since we have information on mean montly precipitation and potential evaporation, it is reasonable to think that they should relate to the seasonality of runoff.
+We can think of expressing the seasonality of precipitation and potential evaporation also through Pard\'e:
+<<>>=
+PkP <- meanPmon/matrix(MAP/365.25, nrow=dim(meanPmon)[1], ncol=12, byrow=FALSE)
+PkEP <- meanEPmon/matrix(PET/365.25, nrow=dim(meanEPmon)[1], ncol=12, byrow=FALSE)
+@
+and plot it along with the runoff Pard\'e:
+<<eval=FALSE>>=
+for (i in 1:length(CatchmentsEU$code)) {
+ plot(c(1:12), PkQ[i,], type="b", xlab="", ylab="Parde",
+      main=paste(CatchmentsEU$code[i], ": ", CatchmentsEU$river[i], " at ", CatchmentsEU$station[i], sep=""),
+      cex.main=1, font.main=1, ylim=c(0,4))
+  lines(c(1:12), PkEP[i,], type="b", pch=2, col="red")
+  lines(c(1:12), PkP[i,], type="b", pch=6, col="blue")
+ readline(i)
+}
+@
+
+
+Following \citet{Milly1994WRR} and \citet{Woods2003AWR}, the climate seasonality index, $S$ can be defined as
+$$S = |\delta_P - \delta_E R|$$
+where $R$ is the aridity index and $\delta_P$ and $\delta_E$ are half of the amplitudes of the seasonal cycle as expressed in Pard\'e, with the convention of being positive if the maximum is in summer and negative if it is in winter (i.e., $\delta_E$ is always positive in the northern emisphere).
+
+If we calculate month of maximum and ranges as before:
+<<>>=
+monMaxPkP <- apply(PkP, 1, FUN=which.max)
+rangePkP <- apply(PkP, 1, FUN=function(x){max(x, na.rm=TRUE) - min(x, na.rm=TRUE)})
+rangePkEP <- apply(PkEP, 1, FUN=function(x){max(x) - min(x)})
+@
+then
+<<>>=
+deltaE <- rangePkEP/2
+sw <- cut(monMaxPkP, breaks=c(1,4,10,12), include.lowest=TRUE)  # summer-winter
+ levels(sw) <- c("winter", "sommer", "winter")                  # summer-winter
+deltaP <- c(-1,1)[as.numeric(sw)]*rangePkP/2
+seasS <- abs(deltaP - deltaE*PETovP)
+@
+
+How do we use these information for understanding the climate seasonality and plot it on a map?
+
+\vspace{1cm}
+
+
+The following lines are taken from \citet{Woods2003AWR}:
+``When $R > 1$, mean potential evaporation exceeds mean rainfall (i.e., a relatively dry climate), whereas $R < 1$ indicates a relatively wet climate. 
+Small values of $S$ indicate that the balance between rainfall and potential evaporation does not change much during the seasonal cycle. 
+So for example, if $R < 1$ and $S < 1 - R$, then we have a wet climate in which rain exceeds potential evaporation both in the long term, and in each season. 
+One might say that the duration of the wet season is the whole seasonal cycle. 
+If instead $R > 1$ and $S < R - 1$, then we have a dry climate with potential evaporation exceeding rain throughout the year, and one might say there is no wet season.
+Large values of $S$ (greater than the larger of $(R - 1)$ and $(1 - R)$ indicate that a switch occurs from a rainfall surplus in the wet season (the part of the seasonal cycle when $P > E_P$) to a rainfall deficit for the rest of the seasonal cycle (the dry season, when $P < E_P$).''
+
+I would like to plot these information on a map.
+Why not using the aridity index for point colors and the magnitude of the climatic seasonality as point size?
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_9_2.pdf", height=6, width=7, pointsize=10)
+par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+library(Hmisc)  # for multiple plots
+# colors related to aridity index
+colori.aridity <- rev(rainbow(20, start=0, end=.65, alpha=1))
+plot(newMap, xlim=range(CatchmentsEU$lon), ylim=range(CatchmentsEU$lat))
+ points(CatchmentsEU$lon, CatchmentsEU$lat, pch=21,
+        cex=0.5 + exp(seasS)/5,
+        bg=colori.aridity[round(10*PETovP)])
+
+subplot(   # needs package 'Hmisc'
+ {plot(PETovP, seasS, pch=21, xlim=c(0, 2),
+       xlab="PET/P", ylab="Climate S",
+       bg=colori.aridity[round(10*PETovP)],
+       cex=0.5 + exp(seasS)/5)
+  abline(v=1, col="grey", lty=3)
+  abline(h=0, col="grey", lty=3)
+  abline(1, -1, col="grey", lty=3)
+  abline(-1, 1, col="grey", lty=3)},
+ c(33,53), c(52,62)
+)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigCh6_9_2}
+\end{center}
+
+
+Can we interpret the map and the graph?
+
+
+\vspace{1cm}
+
+
+Let's try to plot $S$ and $R$ vs the seasonality of runoff in a graph:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_9_1.pdf", height=3.2, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+#ordina <- order(rangePkQ, decreasing=TRUE)
+plot(PETovP[ordina], seasS[ordina], pch=16, xlim=c(0, 2),
+     xlab="PET/P (or R)", ylab="Climate seasonality S",
+     col=colori.stagioni(12)[monMaxPkQ[ordina]],
+     cex=.7*rangePkQ[ordina])
+ abline(v=1, col="grey", lty=3)
+ abline(h=0, col="grey", lty=3)
+ abline(1, -1, col="grey", lty=3)
+ abline(-1, 1, col="grey", lty=3)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh6_9_1}
+\end{center}
+
+
+It is interestingly showing two clusters of points, that can be divided approximatively by the one to one line (that's courious).
+How do we interpret them?
+% It is because of considering just two possibilities, summer and winter, for deciding on the sign of deltaP...
+
+\vspace{.5cm}
+
+If you think this is an artefact of our analysis, can you propose another measure?
+
+
+
+
+
+%   \vspace{1cm}
+%   
+%   Also, there are two clusters, how do we interpret them?
+%   They can be divided approximatively by the one to one line (that's courious). 
+%   <<echo=FALSE, eval=TRUE>>=
+%   pdf(file="FigCh6_9_3.pdf", height=6, width=7, pointsize=10)
+%   par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+%   @
+%   <<fig=FALSE, eval=TRUE>>=
+%   # colors related to aridity index
+%   plot(newMap, xlim=range(CatchmentsEU$lon), ylim=range(CatchmentsEU$lat))
+%    points(CatchmentsEU$lon, CatchmentsEU$lat, pch=21,
+%           cex=1,
+%           bg=c(2,4)[(seasS > PETovP) + 1])
+%   
+%   subplot(   # needs package 'Hmisc'
+%    {plot(PETovP, seasS, pch=21, xlim=c(0, 2),
+%          xlab="PET/P", ylab="Climate S",
+%          bg=c(2,4)[(seasS > PETovP) + 1],
+%          cex=1)
+%     abline(v=1, col="grey", lty=3)
+%     abline(h=0, col="grey", lty=3)
+%     abline(0,1, col="grey", lty=2)
+%     abline(1, -1, col="grey", lty=3)
+%     abline(-1, 1, col="grey", lty=3)},
+%    c(33,53), c(52,62)
+%   )
+%   @
+%   <<echo=FALSE, eval=TRUE, results=hide>>=
+%   dev.off()
+%   @
+%   
+%   \begin{center}
+%    \includegraphics[width=.6\textwidth]{FigCh6_9_3}
+%   \end{center}
+%   
+%   
+%   Interpretations?   :-)
+
+
+
+
+
+%But now stop playing and predict!
+%(ps. anyway, always better playing first than predicting straight)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% --------------------------------------------------------------------------------------------- %
+
+\section{Climate/catchment similarity as explanatory variable}
+
+That's analogous as spatial proximity but now the proximity is searched in the space of climate/catchment characteristics.
+
+In the aridity - climate seasonality space, there was also a spatial coherence in terms of runoff seasonality (1st figure in Section \ref{s:climaSvsArid}).
+Therefore why not trying the nearest neighbor in that space?
+<<>>=
+# I do it differently from before, I use the command dist (see help(dist))
+climDistances <- dist(cbind(PETovP, seasS), method="euclidean", diag=FALSE, upper=TRUE) 
+ # I did not rescale the two variables because their magnitude is comparable
+climDistances <- as.matrix(climDistances)
+ diag(climDistances) <- 1000
+
+finrow <- apply(climDistances, 1, which.min)
+mindist <- apply(climDistances, 1, min)
+
+climNN <- data.frame(dist=mindist, code=CatchmentsEU$code[finrow])
+ head(climNN, 20)  # climatic nearest neighbor
+@
+
+
+Check it visually:
+<<eval=FALSE>>=
+for (i in 1:length(CatchmentsEU$code)) {
+ plot(c(1:12), PkQ[i,], type="b", xlab="", ylab="Parde",
+      main=paste(CatchmentsEU$code[i], ": ", CatchmentsEU$river[i], " at ", CatchmentsEU$station[i], sep=""),
+      cex.main=1, font.main=1, ylim=c(0,4))
+ donor <- which(CatchmentsEU$code == climNN$code[i])
+ lines(c(1:12), PkQ[donor,], type="b", col=2)
+ readline(i)
+}
+@
+<<echo=FALSE, fig=FALSE, results=hide, eval=TRUE>>=
+pdf(file="FigCh6_8_1.pdf", height=4.4, width=6.8, pointsize=9)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+
+layout(matrix(1:12, nrow=3, byrow=TRUE))
+for (i in esempiselezionati) {
+ plot(c(1:12), PkQ[i,], type="b", xlab="", ylab="Parde",
+      main=paste(CatchmentsEU$code[i], ": ", CatchmentsEU$river[i], " at ", CatchmentsEU$station[i], sep=""),
+      cex.main=.7, font.main=1, ylim=c(0,4))
+ donor <- which(CatchmentsEU$code == climNN$code[i])
+ lines(c(1:12), PkQ[donor,], type="b", col=2)
+}
+
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.8\textwidth]{FigCh6_8_1}
+\end{center}
+
+
+Looks less good that the nearest neighbor in geographical space.
+
+
+
+
+
+
+What about Nash-Sutcliffe?
+<<>>=
+NSEs <- rep(NA, length(CatchmentsEU$code))
+for (i in 1:length(CatchmentsEU$code)) {
+ donor <- which(CatchmentsEU$code == climNN$code[i])
+ NSEs[i] <- calcNSE(PkQ[donor,], PkQ[i,])
+}
+climNN$NSE <- NSEs
+@
+which plots:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_8_2.pdf", height=3.2, width=7.2, pointsize=12)
+par(mar=c(3,3,2,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:3, nrow=1), widths=c(5,5,1))
+DD <- climNN$dist
+DD[DD == 0] <- NA
+ordina <- order(rangePkQ, decreasing=TRUE)
+plot(DD[ordina], climNN$NSE[ordina],
+     xlab="climate distance ()", ylab="NSE",
+     log="x", xlim=c(5e-4, 5e-1), ylim=c(-100, 1),
+     cex=.7*rangePkQ,
+     pch=16, col=colori.stagioni(12)[monMaxPkQ])
+ grid()
+plot(DD[ordina], climNN$NSE[ordina],
+     xlab="climate distance ()", ylab="NSE",
+     log="x", xlim=c(5e-4, 5e-1), ylim=c(0, 1),
+     cex=.7*rangePkQ,
+     pch=16, col=colori.stagioni(12)[monMaxPkQ])
+ grid()
+ axis(4)
+par(mar=c(3,0,2,0)+0.03)
+boxplot20(as.data.frame(climNN$NSE),
+          ylim=c(0, 1), axes=FALSE)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.7\textwidth]{FigCh6_8_2}
+\end{center}
+
+
+
+Yes, spatial proximity was better.
+
+
+\vspace{1cm}
+
+What about adding catchment characteristics?
+
+What about combining spatial location and climate/catchment characteristics?
+
+
+
+
+
+
+
+
+
+
+
+
+
+% --------------------------------------------------------------------------------------------- %
+
+\section{Classify the seasonal runoff Pard\'e coefficients into regime types}
+
+Here we reason as geographers, we want to give names to the seasonality of runoff, to identify regime types.
+
+We can try a classification based on runoff seasonality using the \verb+kmeans+ procedure:
+<<eval=FALSE>>=
+help(kmeans)
+@
+Let's calculate the ration of the within and between variances for different number of clusters (se to know approximatively how many clusters to look for):
+<<eval=FALSE>>=  # must be T the first time
+WSSovBSS <- NULL    # within sum of squares over between sum of squares
+for (i in 1:24) {
+ dummy <- kmeans(PkQ, centers=i+1, nstart=100, iter.max=100)
+ WSSovBSS[i] <- dummy$tot.withinss/dummy$betweenss
+}
+@
+<<echo=FALSE>>=
+WSSovBSS <- c(0.83254338,0.52589444,0.41566634,0.33290758,0.27362280,
+              0.24268842,0.22153601,0.20349305,0.19002997,0.17797876,
+              0.16556540,0.15597873,0.14618018,0.13713265,0.13154923,
+              0.12260461,0.11683679,0.11112693,0.10662591,0.10007141,
+              0.09688566,0.09382468,0.08992312,0.08732006)
+@
+and plot it:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_2_1.pdf", height=3.2, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+plot((1:length(WSSovBSS))+1, WSSovBSS, type="b", xlab="Number of Clusters", ylim=c(0,1),
+ ylab="WSS/BSS")
+ grid()
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh6_2_1}
+\end{center}
+
+
+Ok, after 10 clusters we are below 0.2.
+Let's try to group first in more than 10 clusters:
+<<echo=FALSE>>=
+set.seed(8757382)
+@
+<<>>=
+nclasters=16
+# K-Means Cluster Analysis
+fit <- kmeans(PkQ, nclasters, nstart=100)
+# save cluster assignment
+fit.cluster <- fit$cluster
+ names(fit.cluster) <- CatchmentsEU$code
+# get cluster means 
+KmenasEU <- aggregate(PkQ, by=list(fit.cluster), FUN=mean)[,-1]
+ rownames(KmenasEU) <- paste("cluster", 1:nclasters, sep="")
+@
+and plot them in a fancy way:
+<<echo=FALSE, eval=TRUE>>=
+#png(filename="FigCh6_2_2.png", units="in", res=144, height=6, width=7, pointsize=10)
+pdf(file="FigCh6_2_2.pdf", height=6, width=7, pointsize=10)
+par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(c(1,1,1,1,1,2,
+                1,1,1,1,1,3,
+                1,1,1,1,1,4,
+                1,1,1,1,1,5,
+                6:17), ncol=6, byrow=TRUE))
+par(mar=c(2.3,2.3,1.3,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+ plot(newMap, xlim=range(CatchmentsEU$lon, na.rm=TRUE), ylim=range(CatchmentsEU$lat, na.rm=TRUE))
+  points(CatchmentsEU$lon, CatchmentsEU$lat, pch=16,
+         col=rainbow(nclasters, start=0, end=.65, alpha=1)[fit.cluster],
+         cex=1)
+ for (j in 1:nclasters) {
+  plot(c(1,12), c(0,4), type="n", xlab="", ylab="PkQ", main=paste("cluster", j),
+       col.main=rainbow(nclasters, start=0, end=.65, alpha=1)[j])
+  dummy <- PkQ[fit.cluster == j,]
+  for (i in 1:dim(dummy)[1]) {
+   lines(seq(1,12), dummy[i,], col="#00000011")
+  }
+  lines(seq(1,12), KmenasEU[j,], lwd=2, col=rainbow(nclasters, start=0, end=.65, alpha=1)[j])
+ }
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh6_2_2}
+\end{center}
+
+
+Are all these groups different enough between themselves?
+
+Personally I think that 6 clusters would be enough. In my case I would identify:
+\begin{itemize}
+\item strong peak in summer (like for example cluster 9 or cluster 3);
+\item strong peak in spring (like for example cluster 7);
+\item spring maximum (like for example cluster 4 or cluster 6);
+\item winter maximum (like for example cluster 5 or cluster 8);
+\item bimodal (like for example cluster 1 or cluster 14);
+\item weak seasonality (like for example cluster 11 or cluster 16).
+\end{itemize}
+(notice that you will have different clusters, at least in terms of ordering).
+
+Let's \verb+kmeans+ do the job again but where we choose the initial cluster centers:
+<<>>=
+centri <- rbind(fit$centers[9,],  # strong peak in summer
+                fit$centers[7,],  # strong peak in spring
+                fit$centers[4,],  # spring maximum
+                fit$centers[5,],  # winter maximum
+                fit$centers[14,], # bimodal
+                fit$centers[16,]) # weak seasonality
+@
+<<echo=FALSE>>=
+set.seed(7643)
+@
+<<>>=
+nclasters=dim(centri)[1]
+# K-Means Cluster Analysis
+fit <- kmeans(PkQ, centers=centri, nstart=100)
+# save cluster assignment
+fit.cluster <- fit$cluster
+ names(fit.cluster) <- CatchmentsEU$code
+# get cluster means 
+KmenasEU <- aggregate(PkQ, by=list(fit.cluster), FUN=mean)[,-1]
+ rownames(KmenasEU) <- paste("cluster", 1:nclasters, sep="")
+@
+
+Which can be plotted using the same code used for the previous figure.
+Let's try to plot it nicely using colors and sizes proposed in Section \ref{s:intro}.
+<<>>=
+monMaxKmenasEU <- apply(KmenasEU, 1, FUN=which.max)
+ monMaxKmenasEU
+rangeKmenasEU <- apply(KmenasEU, 1, FUN=function(x){max(x) - min(x)})
+ rangeKmenasEU
+@
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_2_3.pdf", height=6, width=7, pointsize=10)
+par(mar=c(0,0,0,0)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(c(1,1,1,1,1,2,
+                1,1,1,1,1,3,
+                1,1,1,1,1,4,
+                1,1,1,1,1,5,
+                6,7,8,8,8,0,
+                0,0,8,8,8,0), ncol=6, byrow=TRUE))
+par(mar=c(2.3,2.3,1.3,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+ plot(newMap, xlim=range(CatchmentsEU$lon, na.rm=TRUE), ylim=range(CatchmentsEU$lat, na.rm=TRUE))
+  points(CatchmentsEU$lon, CatchmentsEU$lat, pch=16,
+         cex=.7*rangeKmenasEU[fit.cluster],
+         col=colori.stagioni(12)[monMaxKmenasEU[fit.cluster]])
+ for (j in 1:nclasters) {
+  plot(c(1,12), c(0,4), type="n", xlab="", ylab="PkQ", main=paste("cluster", j),
+       col.main=colori.stagioni(12)[monMaxKmenasEU[j]])
+  dummy <- PkQ[fit.cluster == j,]
+  for (i in 1:dim(dummy)[1]) {
+   lines(seq(1,12), dummy[i,], col="#00000011")
+  }
+  lines(seq(1,12), fit$centers[j,], type="b", pch=16,
+        cex=.7*rangeKmenasEU[j],
+        col=colori.stagioni(12)[monMaxKmenasEU[j]])
+ }
+plot(c(1,12), c(0,4), type="n", xlab="", ylab="PkQ means")
+for (j in 1:nclasters) {
+ lines(seq(1,12), KmenasEU[j,],  type="b", pch=16,
+       cex=.7*rangeKmenasEU[j],
+       col=colori.stagioni(12)[monMaxKmenasEU[j]])
+}
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh6_2_3}
+\end{center}
+
+
+Therefore, when maximising the between variance and minimising the within variance for 6 clusters I get the following:
+\begin{itemize}
+\item cluster 1: peak in summer;
+\item cluster 2: peak in spring;
+\item cluster 3: late-spring maximum;
+\item cluster 4: late-fall maximum;
+\item cluster 5: early-spring maximum;
+\item cluster 6: winter maximum.
+\end{itemize}
+(notice that you will have different clusters, at least in terms of ordering).
+
+
+\vspace{1cm}
+
+What would be the error if I use the mean cluster Pard\'e as estimate in ungauged basins?
+(notice that this is not estimation in ungauged basins though).
+
+Check it visually:
+<<eval=FALSE>>=
+for (i in 1:length(CatchmentsEU$code)) {
+ plot(c(1:12), PkQ[i,], type="b", xlab="", ylab="Parde",
+      main=paste(CatchmentsEU$code[i], ": ", CatchmentsEU$river[i], " at ", CatchmentsEU$station[i], sep=""),
+      cex.main=1, font.main=1, ylim=c(0,4))
+ donorCluster <- fit.cluster[i]
+ lines(c(1:12), KmenasEU[donorCluster,], type="b", col=2)
+ readline(i)
+}
+@
+<<echo=FALSE, fig=FALSE, results=hide, eval=TRUE>>=
+pdf(file="FigCh6_2_4.pdf", height=4.4, width=6.8, pointsize=9)
+par(mar=c(3,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+
+layout(matrix(1:12, nrow=3, byrow=TRUE))
+for (i in esempiselezionati) {
+ plot(c(1:12), PkQ[i,], type="b", xlab="", ylab="Parde",
+      main=paste(CatchmentsEU$code[i], ": ", CatchmentsEU$river[i], " at ", CatchmentsEU$station[i], sep=""),
+      cex.main=.7, font.main=1, ylim=c(0,4))
+ donorCluster <- fit.cluster[i]
+ lines(c(1:12), KmenasEU[donorCluster,], type="b", col=2)
+}
+
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.8\textwidth]{FigCh6_2_4}
+\end{center}
+
+
+
+What about Nash-Sutcliffe?
+<<>>=
+classifications <- data.frame(fit.cluster=fit.cluster)
+ rownames(classifications) <- CatchmentsEU$code
+NSEs <- rep(NA, length(CatchmentsEU$code))
+for (i in 1:length(CatchmentsEU$code)) {
+ donorCluster <- fit.cluster[i]
+ NSEs[i] <- calcNSE(KmenasEU[donorCluster,], PkQ[i,])
+}
+classifications$NSE0 <- NSEs  # NSE0 because is not PUB
+@
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_2_5.pdf", height=3.2, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+boxplot20(split(classifications$NSE0, classifications$fit.cluster), 
+          ylim=c(0,1), xlab="cluster", ylab="NSE", 
+          boxfill=colori.stagioni(12)[monMaxKmenasEU])
+ grid()
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh6_2_5}
+\end{center}
+
+
+Apart clusters 3 and 5, the result is nice. %This may also related to the fact that NSE is alway better when seasonality is strong.
+<<>>=
+quantile(classifications$NSE0)
+@
+
+But what about prediction in ungauged basins?
+
+
+
+
+
+
+
+
+
+
+% --------------------------------------------------------------------------------------------- %
+
+\section{Allocate ungauged basins to the regime types}
+
+
+Looking at the map with the clusters, again the spatial coherence is striking.
+The most natural way is to use the spatial proximity again, e.g., through the nearest neighbor:
+<<>>=
+NSEs <- rep(NA, length(CatchmentsEU$code))
+donorCluster <- rep(NA, length(CatchmentsEU$code))
+for (i in 1:length(CatchmentsEU$code)) {
+ donor <- which(CatchmentsEU$code == spatNN$code[i])
+ donorCluster[i] <- fit.cluster[donor]
+ NSEs[i] <- calcNSE(KmenasEU[donorCluster[i],], PkQ[i,])
+}
+classifications$reg.cluster <- donorCluster
+classifications$NSE <- NSEs  # now is PUB
+ head(classifications, 20)
+@
+Look at how many times the clusters are rightly assigned:
+<<>>=
+table(classifications$fit.cluster, classifications$reg.cluster)
+round(prop.table(table(classifications$fit.cluster, classifications$reg.cluster), 1)*100)
+@
+Not a too bad allocation (see the diagonals).
+
+
+
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_3_1.pdf", height=3.2, width=3.4, pointsize=8)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+boxplot20(split(classifications$NSE, classifications$reg.cluster),
+          ylim=c(0,1), xlab="cluster", ylab="NSE",
+          boxfill=colori.stagioni(12)[monMaxKmenasEU])
+ grid()
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.4\textwidth]{FigCh6_3_1}
+\end{center}
+
+
+<<>>=
+quantile(classifications$NSE)
+@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% --------------------------------------------------------------------------------------- %
+
+\section{Can seasonality be useful for prediction of annual runoff in ungauged basins?}
+
+I just plot Budyko stratifying the points based on their seasonal regime (the 6 clusters discussed before).
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_4_1.pdf", height=3.8, width=3.8, pointsize=10)
+par(mar=c(3,3,2,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r", las=1)
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(c(1,1,1,2,
+                1,1,1,3,
+                1,1,1,4,
+                5,6,7,0), ncol=4, byrow=TRUE))
+plot(PETovP, ETovP,
+     xlim=c(0,2), ylim=c(-1,1), xlab="PET/P", ylab="ET/P", pch=16,
+     col=colori.stagioni(12)[monMaxKmenasEU[classifications$fit.cluster]],
+     cex=.7*rangeKmenasEU[classifications$fit.cluster])
+ segments(x0=c(0,1), x1=c(1,4), y0=c(0,1), y1=c(1,1), lty=2)
+ segments(x0=0, x1=4, y0=0, lty=2)
+par(mar=c(1.5,1.5,1,1)+0.03)
+for (i in 1:nclasters) {
+ plot(PETovP[classifications$fit.cluster == i], ETovP[classifications$fit.cluster == i],
+     xlim=c(0,2), ylim=c(0,1), xlab="", ylab="", pch=16,
+     col=colori.stagioni(12)[monMaxKmenasEU[i]],
+     cex=.7*rangeKmenasEU[i])
+ segments(x0=c(0,1), x1=c(1,4), y0=c(0,1), y1=c(1,1), lty=2)
+}
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.6\textwidth]{FigCh6_4_1}
+\end{center}
+
+
+
+
+Now use the regionalised seasonal regime:
+<<eval=FALSE>>=
+layout(matrix(c(1,1,1,2,
+                1,1,1,3,
+                1,1,1,4,
+                5,6,7,0), ncol=4, byrow=TRUE))
+plot(PETovP, ETovP,
+     xlim=c(0,2), ylim=c(-1,1), xlab="PET/P", ylab="ET/P", pch=16,
+     col=colori.stagioni(12)[monMaxKmenasEU[classifications$reg.cluster]],
+     cex=.7*rangeKmenasEU[classifications$reg.cluster])
+ segments(x0=c(0,1), x1=c(1,4), y0=c(0,1), y1=c(1,1), lty=2)
+ segments(x0=0, x1=4, y0=0, lty=2)
+par(mar=c(1.5,1.5,1,1)+0.03)
+for (i in 1:nclasters) {
+ plot(PETovP[classifications$reg.cluster == i], ETovP[classifications$reg.cluster == i],
+     xlim=c(0,2), ylim=c(0,1), xlab="", ylab="", pch=16,
+     col=colori.stagioni(12)[monMaxKmenasEU[i]],
+     cex=.7*rangeKmenasEU[i])
+ segments(x0=c(0,1), x1=c(1,4), y0=c(0,1), y1=c(1,1), lty=2)
+}
+@
+
+
+
+well well well, not too bad. How can we use the groups to get better estimates of annual runoff?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% -------------------------------------------------------------------------- %
+
+\section{Compare to the PUB book assessment}
+
+In the Level 2 Assessment of the PUB book \citep{Bloeschletal2013PUBbook} in Chapter 6 the Nash-Sutcliffe efficiency, the normalised error and the absolute normalised error in the estimation of the Pard\'e range is calculated.
+Here I report the NSE results for the nearest neighbor regionalisation made in Section \ref{s:nearestneigh}.
+<<>>=
+NSEnn <- rep(NA, length(CatchmentsEU$code))
+NEnn <- NSEnn
+for (i in 1:length(CatchmentsEU$code)) {
+ donor <- which(CatchmentsEU$code == spatNN$code[i])
+ PkQdon <- PkQ[donor,]  # donor
+ PkQrec <- PkQ[i,]      # rec
+ NSEnn[i] <- calcNSE(PkQdon, PkQrec)
+ rngPkQdon <- max(PkQdon) - min(PkQdon)
+ rngPkQrec <- max(PkQrec) - min(PkQrec)
+ NEnn[i] <- (rngPkQdon - rngPkQrec)/rngPkQrec
+}
+
+tabella <- data.frame(CatchmentsEU[,c("code", "area", "elev")], temp=MAT, aridity=PETovP,
+                      NEnn=round(NEnn, 3), ANEnn=abs(round(NEnn, 3)), NSEnn=round(NSEnn, 3))
+ head(tabella, 15)
+@
+
+<<>>=
+aridity_class <- cut(tabella$aridity, breaks=c(-Inf,0.4,0.6,0.8,1,2,Inf))
+temp_class <- cut(tabella$temp,  breaks=c(-Inf,3,6,8,10,12,Inf))
+elev_class <- cut(tabella$elev, breaks=c(0,300,600,900,1200,1500,Inf))
+area_class <- cut(tabella$area, breaks=c(0,50,100,500,1000,5000,Inf))
+@
+
+
+<<>>=
+add_bxp <- function(performance="ANE", variable="area", classes, table) {
+ # to add boxplot in a nice way
+ perf <- table[, performance]
+ boxplot20(split(perf, classes), add=TRUE, axes=FALSE)
+}
+@
+
+
+Fig 6.28 at page 130 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_11_1.pdf", height=10, width=10.2, pointsize=12)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:16, nrow=4, byrow=TRUE))
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="NSE",
+                     characteristic="Aridity", ylim=c(0,1),
+                     main="Regression")
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="NSE",
+                     characteristic="Aridity", ylim=c(0,1),
+                     main="Spatial_proximity")
+ add_bxp(performance="NSEnn", variable="aridity", classes=aridity_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="NSE",
+                     characteristic="Aridity", ylim=c(0,1),
+                     main="Geostatistics")
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="NSE",
+                     characteristic="Aridity", ylim=c(0,1),
+                     main="Process_based")
+
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="NSE",
+                     characteristic="MAT", ylim=c(0,1))
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="NSE",
+                     characteristic="MAT", ylim=c(0,1))
+ add_bxp(performance="NSEnn", variable="temp", classes=temp_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="NSE",
+                     characteristic="MAT", ylim=c(0,1))
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="NSE",
+                     characteristic="MAT", ylim=c(0,1))
+
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="NSE",
+                     characteristic="Elevation", ylim=c(0,1))
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="NSE",
+                     characteristic="Elevation", ylim=c(0,1))
+ add_bxp(performance="NSEnn", variable="elev", classes=elev_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="NSE",
+                     characteristic="Elevation", ylim=c(0,1))
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="NSE",
+                     characteristic="Elevation", ylim=c(0,1))
+
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="NSE",
+                     characteristic="Area", ylim=c(0,1))
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="NSE",
+                     characteristic="Area", ylim=c(0,1))
+ add_bxp(performance="NSEnn", variable="area", classes=area_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="NSE",
+                     characteristic="Area", ylim=c(0,1))
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="NSE",
+                     characteristic="Area", ylim=c(0,1))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh6_11_1}
+\end{center}
+
+
+
+Fig 6.29 at page 131 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_11_2.pdf", height=10, width=10.2, pointsize=12)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:16, nrow=4, byrow=TRUE))
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="ANE",
+                     characteristic="Aridity", ylim=c(0.5,0),
+                     main="Regression")
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="ANE",
+                     characteristic="Aridity", ylim=c(0.5,0),
+                     main="Spatial_proximity")
+ add_bxp(performance="ANEnn", variable="aridity", classes=aridity_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="ANE",
+                     characteristic="Aridity", ylim=c(0.5,0),
+                     main="Geostatistics")
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="ANE",
+                     characteristic="Aridity", ylim=c(0.5,0),
+                     main="Process_based")
+
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="ANE",
+                     characteristic="MAT", ylim=c(0.5,0))
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="ANE",
+                     characteristic="MAT", ylim=c(0.5,0))
+ add_bxp(performance="ANEnn", variable="temp", classes=temp_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="ANE",
+                     characteristic="MAT", ylim=c(0.5,0))
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="ANE",
+                     characteristic="MAT", ylim=c(0.5,0))
+
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="ANE",
+                     characteristic="Elevation", ylim=c(0.5,0))
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="ANE",
+                     characteristic="Elevation", ylim=c(0.5,0))
+ add_bxp(performance="ANEnn", variable="elev", classes=elev_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="ANE",
+                     characteristic="Elevation", ylim=c(0.5,0))
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="ANE",
+                     characteristic="Elevation", ylim=c(0.5,0))
+
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="ANE",
+                     characteristic="Area", ylim=c(0.5,0))
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="ANE",
+                     characteristic="Area", ylim=c(0.5,0))
+ add_bxp(performance="ANEnn", variable="area", classes=area_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="ANE",
+                     characteristic="Area", ylim=c(0.5,0))
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="ANE",
+                     characteristic="Area", ylim=c(0.5,0))
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh6_11_2}
+\end{center}
+
+
+Fig 6.30 at page 132 of the book:
+<<echo=FALSE, eval=TRUE>>=
+pdf(file="FigCh6_11_3.pdf", height=10, width=10.2, pointsize=12)
+par(mar=c(4,3,1,1)+0.03, mgp=c(1.5,0.3,0), tcl=.2, xaxs="r", yaxs="r")
+@
+<<fig=FALSE, eval=TRUE>>=
+layout(matrix(1:16, nrow=4, byrow=TRUE))
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="NE",
+                     characteristic="Aridity", ylim=c(-.5,.5),
+                     main="Regression"); abline(h=0, lty=3)
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="NE",
+                     characteristic="Aridity", ylim=c(-.5,.5),
+                     main="Spatial_proximity"); abline(h=0, lty=3)
+ add_bxp(performance="NEnn", variable="aridity", classes=aridity_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="NE",
+                     characteristic="Aridity", ylim=c(-.5,.5),
+                     main="Geostatistics"); abline(h=0, lty=3)
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="NE",
+                     characteristic="Aridity", ylim=c(-.5,.5),
+                     main="Process_based"); abline(h=0, lty=3)
+
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="NE",
+                     characteristic="MAT", ylim=c(-.5,.5)); abline(h=0, lty=3)
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="NE",
+                     characteristic="MAT", ylim=c(-.5,.5)); abline(h=0, lty=3)
+ add_bxp(performance="NEnn", variable="temp", classes=temp_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="NE",
+                     characteristic="MAT", ylim=c(-.5,.5)); abline(h=0, lty=3)
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="NE",
+                     characteristic="MAT", ylim=c(-.5,.5)); abline(h=0, lty=3)
+
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="NE",
+                     characteristic="Elevation", ylim=c(-.5,.5)); abline(h=0, lty=3)
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="NE",
+                     characteristic="Elevation", ylim=c(-.5,.5)); abline(h=0, lty=3)
+ add_bxp(performance="NEnn", variable="elev", classes=elev_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="NE",
+                     characteristic="Elevation", ylim=c(-.5,.5)); abline(h=0, lty=3)
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="NE",
+                     characteristic="Elevation", ylim=c(-.5,.5)); abline(h=0, lty=3)
+
+plotPUBfiguresLevel2(chapter=6, method="Regression", performance="NE",
+                     characteristic="Area", ylim=c(-.5,.5)); abline(h=0, lty=3)
+plotPUBfiguresLevel2(chapter=6, method="Spatial_proximity", performance="NE",
+                     characteristic="Area", ylim=c(-.5,.5)); abline(h=0, lty=3)
+ add_bxp(performance="NEnn", variable="area", classes=area_class, table=tabella)
+plotPUBfiguresLevel2(chapter=6, method="Geostatistics", performance="NE",
+                     characteristic="Area", ylim=c(-.5,.5)); abline(h=0, lty=3)
+plotPUBfiguresLevel2(chapter=6, method="Process_based", performance="NE",
+                     characteristic="Area", ylim=c(-.5,.5)); abline(h=0, lty=3)
+@
+<<echo=FALSE, eval=TRUE, results=hide>>=
+dev.off()
+@
+
+\begin{center}
+ \includegraphics[width=.9\textwidth]{FigCh6_11_3}
+\end{center}
+
+
+
+
+\begin{thebibliography}{}
+
+\bibitem[Blöschl et al., 2013]{Bloeschletal2013PUBbook}
+Blöschl, G., Sivapalan, M., Wagener, T., Viglione, A. and Savenije, H. (2013)
+\newblock {\em Runoff Prediction in Ungauged Basins: Synthesis Across Processes, Places and Scales}, University Press, Cambridge, 484 pages, ISBN:9781107028180. 
+
+\bibitem[Milly, 1994]{Milly1994WRR}
+Milly P.C.D. 
+\newblock Climate, soil water storage and the average annual water balance, 
+\newblock {\em Water Resources Research} \textbf{30}, 2143--56, \doi{10.1029/94WR00586}.
+
+\bibitem[Weingartner et al., 2013]{Weingartneral2013PUBbookCh6}
+Weingartner, R., G. Blöschl, D. M. Hannah, D. G. Marks, J. Parajka, C. S. Pearson, M. Rogger, J. L. Salinas, E. Sauquet, R. Srikanthan, S. E. Thompson and A. Viglione (2013)
+\newblock Prediction of seasonal runoff in ungauged basins.
+\newblock In {\em Runoff Prediction in Ungauged Basins: Synthesis Across Processes, Places and Scales}, University Press, Cambridge, 102-134, ISBN:9781107028180.
+
+\bibitem[Woods, 2003]{Woods2003AWR}
+Woods, R. (2003)
+\newblock The relative roles of climate, soil, vegetation and topography in determining seasonal and long-term catchment dynamics,
+\newblock {\em Advances in Water Resources},  \textbf{26}, 295--309, \doi{10.1016/S0309-1708(02)00164-1}.
+
+
+
+\end{thebibliography}
+
+
+<<echo=FALSE>>=
+options(prompt="> ", continue="+ ")
+@
+
+\end{document}
+
